@@ -31,6 +31,9 @@ bun run --cwd apps/desktop dist:mind
 
 ## 数据与恢复
 
+可通过 `--user-data-dir=<绝对路径>` 选择独立数据目录与单实例锁。自动测试会
+核对实际生效路径，不再将仅修改 `APPDATA` 视为可靠的 Windows 工作区隔离。
+
 Windows 数据位于 `%APPDATA%/EdgeEverMind/maps/workspace.json`。不读取或迁移
 旧 EdgeEver 账号和 SQLite 数据。首版个人工作区采用独立、校验后的 JSON 仓库，
 避开 Rust SQLite 的账号绑定。写入串行执行，临时文件 flush 后原子重命名；

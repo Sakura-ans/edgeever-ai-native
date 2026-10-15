@@ -8,7 +8,8 @@ import { createPersonalAgentRequests } from './personal-ai.mjs';
 
 // Separate identity prevents reading/migrating original EdgeEver account data.
 app.setName('EdgeEver Mind');
-app.setPath('userData',join(app.getPath('appData'),'EdgeEverMind'));
+const requestedProfile = app.commandLine.getSwitchValue('user-data-dir');
+app.setPath('userData',requestedProfile ? resolve(requestedProfile) : join(app.getPath('appData'),'EdgeEverMind'));
 protocol.registerSchemesAsPrivileged([{scheme:'edgeever-mind',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 if (!app.requestSingleInstanceLock()) app.quit();
 else {

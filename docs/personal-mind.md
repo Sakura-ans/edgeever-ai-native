@@ -37,6 +37,10 @@ scheduled workflow that still runs from main.
 
 ## Local data and recovery
 
+An explicit `--user-data-dir=<absolute path>` selects an independent profile,
+including the single-instance lock. Automated tests assert this actual path;
+changing `APPDATA` alone is not treated as Windows profile isolation.
+
 Windows data lives in `%APPDATA%/EdgeEverMind/maps/workspace.json`. Existing
 EdgeEver accounts and SQLite databases are not migrated or read. This first
 personal workspace uses a small validated JSON repository, deliberately isolated

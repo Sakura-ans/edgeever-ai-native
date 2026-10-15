@@ -7,7 +7,7 @@ if (!executablePath) throw new Error('Provide the unpacked personal Electron exe
 const profile=await mkdtemp(join(tmpdir(),'edgeever-mind-package-'));
 let application;
 try {
- application=await electron.launch({executablePath:resolve(executablePath),env:{...process.env,APPDATA:profile,XDG_CONFIG_HOME:profile},timeout:60000});
+ application=await electron.launch({executablePath:resolve(executablePath),args:[`--user-data-dir=${join(profile,'EdgeEverMind')}`],env:{...process.env,APPDATA:profile,XDG_CONFIG_HOME:profile},timeout:60000});
  const page=await application.firstWindow();
  await application.evaluate(({session})=>{session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_details,callback)=>callback({cancel:true}));});
  await expect(page.getByRole('button',{name:'＋ 新建导图'})).toBeVisible();

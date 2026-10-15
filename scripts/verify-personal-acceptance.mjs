@@ -10,15 +10,16 @@ await mkdir(output,{recursive:true});
 const profile=await mkdtemp(join(tmpdir(),'mind-acceptance-'));
 const report={baseline:'a9433f1460bdecc5e89d95ee093fceab91808ebc',commit:process.env.GITHUB_SHA ?? 'local',platform:process.platform,source:process.env.MIND_INSTALLER_TESTED === '1' ? 'NSIS-installed Electron' : 'unpacked Electron',firstLaunchNetworkBlock:process.env.MIND_OFFLINE_FIREWALL === '1' ? 'Windows outbound firewall configured before first launch' : 'renderer/session network blocked after launch (not first-launch OS isolation)',syntheticDataOnly:true,paidProviderCalls:0,cases:[],screenshots:[],limitations:['No real DeepSeek requests or key used.','AI events are injected by the debugger into the live store; actual proposal/approval IPC and filesystem are used.','Native file picker selections and secure-storage failure are injected; native success-path crypto is real on Windows.','Running-agent cancellation and concurrent prompt reservation are tested with the mock SDK unit suite; native UI here checks idle cancellation and no-key failure.','CI virtual Windows desktop is not a physical consumer computer.']};
 let application,page;let allowDialog=true;const errors=[];
-const env={...process.env,APPDATA:profile,XDG_CONFIG_HOME:profile};
+const env={...process.env,APPDATA:join(profile,'environment-decoy'),XDG_CONFIG_HOME:join(profile,'environment-decoy')};
 const saved=async()=>{await expect(page.getByRole('status')).toHaveText('已保存到本机');};
 async function shot(name){const filename=`${name}.png`;await page.screenshot({path:join(output,filename)});report.screenshots.push({file:filename,source:`${process.platform} ${report.source}`,synthetic:true});}
-async function check(name,fn){const start=Date.now();try{await fn();report.cases.push({name,status:'PASS',milliseconds:Date.now()-start});console.log(`PASS ${name}`);}catch(error){report.cases.push({name,status:'FAIL',error:String(error),milliseconds:Date.now()-start});if(page && !page.isClosed()) await shot('failure').catch(()=>{});throw error;}}
+async function check(name,fn){const start=Date.now();try{await fn();report.cases.push({name,status:'PASS',milliseconds:Date.now()-start});console.log(`PASS ${name}`);}catch(error){console.error('FAIL',name,String(error));report.cases.push({name,status:'FAIL',error:String(error),milliseconds:Date.now()-start});if(page && !page.isClosed()) await shot('failure').catch(()=>{});throw error;}}
 async function launch(){
- application=await electron.launch({executablePath:executable,env,timeout:60000});page=await application.firstWindow();
+ application=await electron.launch({executablePath:executable,args:[`--user-data-dir=${join(profile,'EdgeEverMind')}`],env,timeout:60000});page=await application.firstWindow();
  page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>allowDialog ? dialog.accept() : dialog.dismiss());
  await application.evaluate(({session})=>session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_d,callback)=>callback({cancel:true})));
  await expect(page.getByRole('button',{name:'＋ 新建导图'})).toBeVisible();
+ assert.equal(await application.evaluate(({app})=>app.getPath('userData')),join(profile,'EdgeEverMind'));
 }
 async function create(title){await page.getByRole('button',{name:'＋ 新建导图'}).click();await page.getByLabel('新导图名称').fill(title);await page.getByRole('button',{name:'创建',exact:true}).click();await page.getByLabel('主题内容').waitFor();await saved();}
 async function snapshot(){return page.evaluate(()=>window.edgeeverMind.load());}
@@ -90,14 +91,14 @@ try {
  await application.close();application=null;
  if(process.platform==='win32') await check('corrupt on-disk workspace startup fails closed with native error dialog',async()=>{
   const corrupt=await mkdtemp(join(tmpdir(),'mind-corrupt-'));const data=join(corrupt,'EdgeEverMind','maps');await mkdir(data,{recursive:true});await writeFile(join(data,'workspace.json'),'CORRUPT-SYNTHETIC');
-  const child=spawn(executable,[],{env:{...process.env,APPDATA:corrupt},stdio:'ignore'});
+  const child=spawn(executable,[`--user-data-dir=${join(corrupt,'EdgeEverMind')}`],{env:{...process.env,APPDATA:corrupt},stdio:'ignore'});
   try {
    const capture=join(output,'16-corrupt-workspace-native-dialog.png');
    const script=`Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; $end=(Get-Date).AddSeconds(20); do { Start-Sleep -Milliseconds 300; $p=Get-Process -Id ${child.pid} -ErrorAction SilentlyContinue } while ($p -and !$p.MainWindowTitle -and (Get-Date) -lt $end); if (!$p -or !$p.MainWindowTitle) { throw 'Native error dialog did not appear' }; $bounds=[System.Windows.Forms.Screen]::PrimaryScreen.Bounds; $bmp=New-Object System.Drawing.Bitmap($bounds.Width,$bounds.Height); $g=[System.Drawing.Graphics]::FromImage($bmp); $g.CopyFromScreen($bounds.Location,[System.Drawing.Point]::Empty,$bounds.Size); $bmp.Save('${capture.replaceAll("'","''")}',[System.Drawing.Imaging.ImageFormat]::Png); $g.Dispose();$bmp.Dispose();Write-Output $p.MainWindowTitle`;
    const title=execFileSync('powershell.exe',['-NoProfile','-Command',script],{encoding:'utf8',timeout:30000});assert.match(title,/EdgeEver/i);assert.equal(await readFile(join(data,'workspace.json'),'utf8'),'CORRUPT-SYNTHETIC');report.screenshots.push({file:'16-corrupt-workspace-native-dialog.png',source:'Windows desktop native error dialog',synthetic:true});
   } finally {child.kill();await new Promise(r=>setTimeout(r,1000));await rm(corrupt,{recursive:true,force:true,maxRetries:5,retryDelay:500});}
  });
-} catch(error){report.failure=String(error);process.exitCode=1;}
+} catch(error){console.error('Acceptance failure:',String(error));report.failure=String(error);process.exitCode=1;}
 finally {
  if(application) await application.close().catch(()=>{});
  await rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:500}).catch(()=>{});
