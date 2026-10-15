@@ -22,7 +22,7 @@ export function validateDocument(value) {
   }
   const edgeIds = new Set(), targets = new Set();
   for (const e of value.edges) {
-    if (!e || typeof e.id !== 'string' || edgeIds.has(e.id) || targets.has(e.target) || !ids.has(e.source) || nodes.get(e.target)?.parentId !== e.source) throw new Error('Invalid edge');
+    if (!e || typeof e.id !== 'string' || !e.id || ids.has(e.id) || edgeIds.has(e.id) || targets.has(e.target) || !ids.has(e.source) || nodes.get(e.target)?.parentId !== e.source) throw new Error('Invalid edge');
     edgeIds.add(e.id); targets.add(e.target);
   }
   // Only persist the IR fields; reject oversized envelopes before parsing at IPC/import boundaries.

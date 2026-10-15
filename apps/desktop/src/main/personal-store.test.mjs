@@ -40,3 +40,9 @@ test('invalid cyclic trees and unknown edges are rejected',async()=>fixture(asyn
 test('corrupt workspace is never silently replaced',async()=>fixture(async(_s,dir)=>{
  await writeFile(join(dir,'workspace.json'),'broken');await expect(new PersonalStore(dir).init()).rejects.toThrow('not overwritten');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe('broken');
 }));
+test('failed disk writes preserve memory and future saves; preview objects cannot change approval',async()=>fixture(async(s)=>{
+ const m=s.snapshot().maps[0];const before=s.snapshot();const persist=s.persist.bind(s);s.persist=async()=>{throw new Error('Disk full');};
+ await expect(s.command({type:'rename',id:m.id,revision:0,title:'Lost'})).rejects.toThrow('Disk full');expect(s.snapshot()).toEqual(before);
+ s.persist=persist;const proposal=s.propose(m.id,0,changed(m),'Preview');proposal.document.nodes[0].label='Tampered preview';
+ await s.approve(proposal.id);expect(s.snapshot().maps[0].document.nodes[0].label).toBe('Mock AI label');
+}));

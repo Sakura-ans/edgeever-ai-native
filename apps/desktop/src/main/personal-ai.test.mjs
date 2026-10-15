@@ -14,6 +14,8 @@ test('mock SDK only reads/submits proposals; no built-in tools or settings; no d
       const read=JSON.parse((await tools.find(t=>t.name==='read_map').handler()).content[0].text);
       read.document.nodes[0].label='Synthetic mock response';
       await tools.find(t=>t.name==='propose_map').handler({document:read.document,summary:'Preview only'});
+      yield {type:'stream_event',event:{type:'content_block_delta',delta:{type:'text_delta',text:'Please '}}};
+      yield {type:'stream_event',event:{type:'content_block_delta',delta:{type:'text_delta',text:'review.'}}};
       yield {type:'assistant',message:{content:[{type:'text',text:'Please review.'}]}};
     })();
   }};
@@ -23,7 +25,8 @@ test('mock SDK only reads/submits proposals; no built-in tools or settings; no d
   expect((await options.canUseTool('Bash',{command:'bad'})).behavior).toBe('deny');
   expect((await options.canUseTool('Write',{})).behavior).toBe('deny');
   expect((await options.canUseTool('mcp__mindmap__approve',{})).behavior).toBe('deny');
-  expect(tools.map(t=>t.name)).toEqual(['read_map','propose_map']);expect(events[0].type).toBe('proposal');expect(events[1].text).toBe('Please review.');
+  expect(tools.map(t=>t.name)).toEqual(['read_map','propose_map']);expect(events[0].type).toBe('proposal');expect(events.filter(e=>e.type === 'text').map(e=>e.text).join('')).toBe('Please review.');
+  expect(options.strictMcpConfig).toBe(true);expect(options.skills).toEqual([]);expect(options.plugins).toEqual([]);
   expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
   await store.approve(events[0].proposal.id);expect(store.snapshot().maps[0].document.nodes[0].label).toBe('Synthetic mock response');
  }finally{await rm(dir,{recursive:true,force:true});}

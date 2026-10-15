@@ -28,7 +28,7 @@ bun run --cwd apps/desktop dist:mind
 ```
 
 The unsigned x64 NSIS installer is written to `release/mind`. The personal CI
-workflow builds a private repository Actions artifact; it does not publish a
+workflow builds a repository Actions artifact; it does not publish a
 Release or deploy anything. `electron-builder.mind.yml` uses a distinct app ID,
 executable name and data directory, with no update feed. Upstream synchronization
 is disabled for this repository in the upstream sync workflow **once that change

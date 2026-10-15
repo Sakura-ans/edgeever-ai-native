@@ -9,6 +9,7 @@ jobs:
   checks:
     if: github.repository == 'Sakura-ans/edgeever-ai-native'
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -22,6 +23,7 @@ jobs:
   windows:
     if: github.repository == 'Sakura-ans/edgeever-ai-native'
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -35,6 +37,8 @@ jobs:
       - run: bun run --cwd apps/desktop dist:mind
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Smoke test packaged desktop
+        run: node scripts/verify-personal-package.mjs release/mind/win-unpacked/EdgeEverMind.exe
       - uses: actions/upload-artifact@v4
         with:
           name: EdgeEver-Mind-Windows-preview

@@ -9,6 +9,7 @@ type Workspace = {version:1;revision:number;maps:MindMap[]};
 type Proposal = {id:string;mapId:string;revision:number;summary:string;document:DiagramDocument};
 type AgentEvent = {type:'text';text:string} | {type:'proposal';proposal:Proposal};
 interface MindBridge {
+  readyToClose?():Promise<boolean>;onBeforeClose?(fn:()=>void):()=>void;
   load():Promise<Workspace>; command(input:Record<string,unknown>):Promise<Workspace>; approve(id:string):Promise<Workspace>; reject(id:string):Promise<boolean>;
   exportBackup():Promise<boolean>; importBackup():Promise<Workspace>;
   config():Promise<{model:string;hasKey:boolean}>; saveConfig(input:{model:string;apiKey:string}):Promise<boolean>;clearConfig():Promise<boolean>;
@@ -50,10 +51,12 @@ function App() {
   useEffect(() => {
     if (!bridge) {setError('请从 EdgeEver Mind 桌面应用打开此工作台。');return;}
     void bridge.load().then(state => {setWorkspace(state);setStatus('已保存到本机');}).catch(e => setError(String(e)));
-    return bridge.onAgentEvent(event => {
+    const offClose = bridge.onBeforeClose?.(() => {void pending.current.then(() => bridge.readyToClose?.());});
+    const offAgent = bridge.onAgentEvent(event => {
       if (event.type === 'text') setAnswer(text => text + event.text);
       else setProposals(items => [...items,event.proposal]);
     });
+    return () => {offClose?.();offAgent();};
   },[]);
   useEffect(() => {if (document.activeElement?.getAttribute('aria-label') !== '主题内容') setLabel(node?.label ?? '');},[node?.id,node?.label]);
   useEffect(() => {setMapTitle(map?.title ?? '');},[map?.id]);

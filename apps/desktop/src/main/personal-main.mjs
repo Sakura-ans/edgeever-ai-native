@@ -88,10 +88,11 @@ app.whenReady().then(async () => {
   });
   window = new BrowserWindow({width:1400,height:900,minWidth:1000,minHeight:650,title:'EdgeEver Mind',webPreferences:{preload:join(here,'../preload/personal.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   let closing = false;
+  handle('close-ready',async () => { await store.queue; closing = true; window.close(); return true; });
   window.on('close',event => {
     if (closing) return;
     event.preventDefault(); activeAgent?.abort();
-    void store.queue.then(() => { closing = true; window.close(); });
+    window.webContents.send('mind:before-close');
   });
   window.setMenu(null);
   window.webContents.setWindowOpenHandler(() => ({action:'deny'}));

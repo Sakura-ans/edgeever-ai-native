@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
@@ -14,7 +14,7 @@ try {
  await page.exposeFunction('mindCommand',input=>store.command(input));
  await page.exposeFunction('mindApprove',id=>store.approve(id));
  await page.exposeFunction('mindReject',id=>store.reject(id));
- await page.addInitScript(()=>{window.edgeeverMind={load:()=>window.mindLoad(),command:input=>window.mindCommand(input),approve:id=>window.mindApprove(id),reject:id=>window.mindReject(id),onAgentEvent:fn=>{window.emitMockAgentEvent=fn;return ()=>{};},config:async()=>({model:'mock-model',hasKey:false})};});
+ await page.addInitScript(()=>{window.edgeeverMind={readyToClose:async()=>{window.closeAcknowledged=true;return true;},onBeforeClose:fn=>{window.emitBeforeClose=fn;return ()=>{};},load:()=>window.mindLoad(),command:input=>window.mindCommand(input),approve:id=>window.mindApprove(id),reject:id=>window.mindReject(id),onAgentEvent:fn=>{window.emitMockAgentEvent=fn;return ()=>{};},config:async()=>({model:'mock-model',hasKey:false})};});
  page.on('dialog',dialog=>dialog.accept(dialog.type() === 'prompt' ? '离线测试导图' : undefined));
  await page.goto(process.env.MIND_TEST_URL ?? 'http://127.0.0.1:5173/personal.html');
  await page.getByRole('button',{name:'＋ 新建导图'}).click();
@@ -30,7 +30,7 @@ try {
  await page.getByRole('button',{name:'重做',exact:true}).click();
  await page.reload();
  await page.getByRole('button',{name:'子主题内容',exact:true}).click();
- assert.equal(await page.getByLabel('主题内容').inputValue(),'子主题内容');
+ await expect(page.getByLabel('主题内容')).toHaveValue('子主题内容');
  let m=store.snapshot().maps[0];const document=structuredClone(m.document);document.nodes[0].label='AI mock proposal';
  const proposal=store.propose(m.id,m.revision,document,'Mock confirmation test');
  await page.evaluate(proposal=>window.emitMockAgentEvent({type:'proposal',proposal}),proposal);
@@ -42,6 +42,10 @@ try {
  await page.getByRole('button',{name:'撤销',exact:true}).click();
  await page.getByRole('button',{name:'独立本地根主题',exact:true}).waitFor();
  await page.screenshot({path:process.env.MIND_SCREENSHOT ?? '/tmp/edgeever-mind-workspace.png'});
+ await page.getByLabel('主题内容').fill('关闭前保存');
+ await page.evaluate(()=>window.emitBeforeClose());
+ await page.waitForFunction(()=>window.closeAcknowledged === true);
+ assert.ok(store.snapshot().maps[0].document.nodes.some(n=>n.label === '关闭前保存'));
  assert.deepEqual(errors,[]);
  console.log('PASS: browser create/edit/canvas/outline/reload/undo/redo/reject/approve/rollback; no page errors; synthetic data only');
 } finally {await browser.close();await rm(dir,{recursive:true,force:true});}
