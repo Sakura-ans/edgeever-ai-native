@@ -12,6 +12,13 @@ export function createProposalTools(store, mapId, revision) {
     propose_map: async ({document,summary}) => store.propose(mapId,revision,document,summary),
   };
 }
+export function personalAgentEnvironment(config, workingDirectory, source = process.env) {
+  // Do not inherit another provider's routing, OAuth tokens, custom auth headers,
+  // hooks, or agent settings from a user's shell environment.
+  const environment = Object.fromEntries(Object.entries(source).filter(([name]) => /^(PATH|HOME|USERPROFILE|SYSTEMROOT|WINDIR|COMSPEC|PATHEXT|TEMP|TMP|TMPDIR|APPDATA|LOCALAPPDATA|LANG|LC_ALL|HTTP_PROXY|HTTPS_PROXY|ALL_PROXY|NO_PROXY|NODE_EXTRA_CA_CERTS)$/i.test(name)));
+  return {...environment,CLAUDE_CONFIG_DIR:workingDirectory,ANTHROPIC_BASE_URL:'https://api.deepseek.com/anthropic',ANTHROPIC_AUTH_TOKEN:config.apiKey,ANTHROPIC_MODEL:config.model,ANTHROPIC_DEFAULT_HAIKU_MODEL:config.model,ANTHROPIC_DEFAULT_SONNET_MODEL:config.model,ANTHROPIC_DEFAULT_OPUS_MODEL:config.model,CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1'};
+}
+
 export function resolvePersonalAgentExecutable() {
   const require = createRequire(import.meta.url);
   const sdkRequire = createRequire(require.resolve('@anthropic-ai/claude-agent-sdk'));
@@ -40,7 +47,7 @@ export async function runPersonalAgent({store,mapId,revision,prompt,config,onEve
     const stream = query({prompt:messages,options:{
       cwd:workingDirectory, model:config.model,
       ...(sdk ? {} : {pathToClaudeCodeExecutable:resolvePersonalAgentExecutable()}),
-      env:{...process.env,CLAUDE_CONFIG_DIR:workingDirectory,ANTHROPIC_BASE_URL:'https://api.deepseek.com/anthropic',ANTHROPIC_AUTH_TOKEN:config.apiKey,ANTHROPIC_API_KEY:undefined,CLAUDE_CODE_OAUTH_TOKEN:undefined,ANTHROPIC_MODEL:config.model,ANTHROPIC_DEFAULT_HAIKU_MODEL:config.model,ANTHROPIC_DEFAULT_SONNET_MODEL:config.model,ANTHROPIC_DEFAULT_OPUS_MODEL:config.model,CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:'1'},
+      env:personalAgentEnvironment(config,workingDirectory),
       tools:[], allowedTools:allowed, settingSources:[], skills:[], plugins:[], strictMcpConfig:true, persistSession:false, includePartialMessages:true,
       permissionMode:'default', canUseTool:async (name,input) => allowed.includes(name) ? {behavior:'allow',updatedInput:input} : {behavior:'deny',message:'Only mind map read and proposal tools are permitted'},
       mcpServers:{mindmap:server}, abortController:controller, maxTurns:8,

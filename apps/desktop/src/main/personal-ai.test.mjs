@@ -3,7 +3,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {PersonalStore} from './personal-store.mjs';
-import {runPersonalAgent} from './personal-ai.mjs';
+import {runPersonalAgent,personalAgentEnvironment} from './personal-ai.mjs';
 test('mock SDK only reads/submits proposals; no built-in tools or settings; no database writes',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'mind-ai-test-'));
  try {
@@ -30,4 +30,9 @@ test('mock SDK only reads/submits proposals; no built-in tools or settings; no d
   expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
   await store.approve(events[0].proposal.id);expect(store.snapshot().maps[0].document.nodes[0].label).toBe('Synthetic mock response');
  }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('provider credentials and routing cannot leak in from the launching shell',()=>{
+ const env=personalAgentEnvironment({apiKey:'synthetic-key',model:'synthetic-model'},'/temporary-agent',{PATH:'/bin',CLAUDE_CODE_USE_BEDROCK:'1',ANTHROPIC_API_KEY:'unrelated-key',ANTHROPIC_CUSTOM_HEADERS:'unrelated-auth',CLAUDE_CODE_OAUTH_TOKEN:'unrelated-token'});
+ expect(env.PATH).toBe('/bin');expect(env.ANTHROPIC_AUTH_TOKEN).toBe('synthetic-key');expect(env.CLAUDE_CODE_USE_BEDROCK).toBeUndefined();expect(env.ANTHROPIC_API_KEY).toBeUndefined();expect(env.ANTHROPIC_CUSTOM_HEADERS).toBeUndefined();expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
 });
