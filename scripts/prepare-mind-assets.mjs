@@ -9,7 +9,8 @@ await mkdir(join(output,'fonts'),{recursive:true});await mkdir(join(output,'lice
 const css=await readFile(join(fontRoot,'index.css'),'utf8');
 const files=[...new Set([...css.matchAll(/url\(\.\/(files\/[^)]+)\)/g)].map(m=>m[1]))];
 // All upstream unicode partitions, unchanged; never subset from application text.
-await rm(join(output,'fonts'),{recursive:true,force:true});await mkdir(join(output,'fonts'));
+const expected=new Set([...files.map(file=>file.split('/').at(-1)),'noto-sans-sc.css','manifest.json']);
+for(const name of await readdir(join(output,'fonts')))if(!expected.has(name))await rm(join(output,'fonts',name),{force:true});
 for(const file of files)await copyFile(join(fontRoot,file),join(output,'fonts',file.split('/').at(-1)));
 await writeFile(join(output,'fonts','noto-sans-sc.css'),css.replaceAll('./files/','./'));
 await copyFile(join(fontRoot,'LICENSE'),join(output,'licenses','NotoSansSC-OFL.txt'));

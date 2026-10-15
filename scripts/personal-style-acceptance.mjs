@@ -6,9 +6,9 @@ export async function verifyStyles({page,snapshot,restart,shot,check,emitProposa
  const current=async()=>{const title=await page.getByLabel('导图名称').inputValue();return (await snapshot()).maps.find(m=>m.title===title);};
  const panel=async()=>{const b=page.getByRole('button',{name:'◈ 主题',exact:true});if(await b.getAttribute('aria-pressed')!=='true')await b.click();};
  await check('local Chinese font is loaded; narrow drawers remain mutually exclusive',async()=>{
-  await page.evaluate(async()=>{await document.fonts.load('500 16px "Noto Sans SC Variable"','中文导图 ABC 0123456789');await document.fonts.ready;});
-  assert.equal(await page.evaluate(()=>document.fonts.check('500 16px "Noto Sans SC Variable"','中文导图')),true);
-  const urls=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>r.name.endsWith('.woff2')).map(r=>r.name));assert.ok(urls.length>0);assert.ok(urls.every(url=>!/^https?:/.test(url)||url.startsWith('http://127.0.0.1:')));
+  const fonts=await page.evaluate(async()=>{const loaded=await document.fonts.load('500 16px "Noto Sans SC Variable"','中文导图 ABC 0123456789');await document.fonts.ready;return loaded.map(f=>({family:f.family,status:f.status}));});
+  assert.ok(fonts.length>0,'Local Chinese font faces must exist, not only a system fallback');assert.ok(fonts.every(f=>f.status==='loaded'&&f.family.includes('Noto Sans SC')));
+  const verified=await page.evaluate(async()=>{const manifest=await fetch('/fonts/manifest.json').then(r=>r.json());let count=0;for(const file of manifest.files){const bytes=await fetch('/fonts/'+file.file).then(r=>r.arrayBuffer());if(bytes.byteLength!==file.bytes)throw new Error('Font size mismatch: '+file.file);const digest=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('');if(digest!==file.sha256)throw new Error('Font hash mismatch: '+file.file);count++;}return count;});assert.equal(verified,101);
   await page.setViewportSize({width:680,height:820});await page.getByRole('button',{name:'◈ 主题',exact:true}).click();await expect(page.locator('.library')).toHaveCount(0);await page.getByRole('button',{name:'☷ 导图库'}).click();await expect(page.locator('.assistant')).toHaveCount(0);await page.getByRole('button',{name:'收起导图库',exact:true}).click();await expect(page.locator('.library')).toHaveCount(0);await page.setViewportSize({width:1440,height:950});await page.getByRole('button',{name:'☷ 导图库'}).click();
  });
  await check('all 13 color presets are selectable and keep exact node geometry',async()=>{
