@@ -34,6 +34,7 @@ export async function runPersonalAgent({store,mapId,revision,prompt,config,onEve
   const server = createSdkMcpServer({name:'mindmap',version:'1.0.0',tools:[
     tool('read_map','Read the current mind map and its revision',{},async () => result(await handlers.read_map())),
     tool('propose_map','Submit a replacement DiagramDocument for human review. Does not save or apply it.',{document:z.record(z.string(),z.unknown()),summary:z.string().max(2000)},async input => {
+      if (signal?.aborted) throw new Error('Cancelled');
       const proposal = await handlers.propose_map(input); onEvent({type:'proposal',proposal}); return result({proposalId:proposal.id,status:'pending_user_confirmation'});
     }),
   ]});
@@ -66,7 +67,7 @@ export async function runPersonalAgent({store,mapId,revision,prompt,config,onEve
 }
 
 // Reserve the request slot before any credential or filesystem await.
-export function createPersonalAgentRequests({store,readConfig,makeDirectory,removeDirectory,emit,runAgent=runPersonalAgent}) {
+export function createPersonalAgentRequests({store,readConfig,makeDirectory,removeDirectory,emit,runAgent=runPersonalAgent,timeoutMs=120000}) {
   let active;
   return {
     cancel() { active?.abort(); return true; },
@@ -75,6 +76,7 @@ export function createPersonalAgentRequests({store,readConfig,makeDirectory,remo
       if (!input || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 10000) throw new Error('Invalid prompt');
       store.map(store.snapshot(),input.id,input.revision);
       const controller = new AbortController(); active = controller;
+      const timer = setTimeout(() => controller.abort(),timeoutMs);
       let directory;
       try {
         const config = await readConfig();
@@ -83,9 +85,10 @@ export function createPersonalAgentRequests({store,readConfig,makeDirectory,remo
         directory = await makeDirectory();
         if (controller.signal.aborted) throw new Error('Cancelled');
         await runAgent({store,mapId:input.id,revision:input.revision,prompt:input.prompt,config,signal:controller.signal,workingDirectory:directory,onEvent:emit});
+        if (controller.signal.aborted) throw new Error('Cancelled');
         return true;
       } catch { throw new Error('AI request failed or cancelled. No automatic map changes were made.'); }
-      finally { try { if (directory) await removeDirectory(directory); } finally { active = null; } }
+      finally { clearTimeout(timer); try { if (directory) await removeDirectory(directory); } finally { active = null; } }
     },
   };
 }

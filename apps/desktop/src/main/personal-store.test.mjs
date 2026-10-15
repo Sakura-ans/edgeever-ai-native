@@ -46,3 +46,25 @@ test('failed disk writes preserve memory and future saves; preview objects canno
  s.persist=persist;const proposal=s.propose(m.id,0,changed(m),'Preview');proposal.document.nodes[0].label='Tampered preview';
  await s.approve(proposal.id);expect(s.snapshot().maps[0].document.nodes[0].label).toBe('Mock AI label');
 }));
+
+test('empty, unchanged and cyclic move proposals never write or become pending',async()=>fixture(async(s,dir)=>{
+ const m=s.snapshot().maps[0],before=await readFile(join(dir,'workspace.json'),'utf8');
+ expect(()=>s.propose(m.id,0,m.document,'No change')).toThrow('没有实际变更');
+ expect(()=>s.propose(m.id,0,{...m.document,nodes:[]},'Empty')).toThrow();
+ const root=m.document.nodes[0];const child={...root,id:'child',parentId:root.id};const grand={...root,id:'grand',parentId:'child'};
+ const cycle={...m.document,nodes:[root,{...child,parentId:'grand'},grand],edges:[{id:'e1',source:'grand',target:'child'},{id:'e2',source:'child',target:'grand'}]};
+ expect(()=>s.propose(m.id,0,cycle,'Invalid move')).toThrow();expect(s.proposals.size).toBe(0);expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
+}));
+test('large/deep tree limits, long names and corrupt/unsupported backup boundaries',async()=>fixture(async(s,dir)=>{
+ const root=s.snapshot().maps[0].document.nodes[0];
+ const tree=(count,deep)=>({schemaVersion:1,kind:'mind-map',nodes:Array.from({length:count},(_,i)=>({...root,id:String(i),label:'同名',...(i ? {parentId:deep?String(i-1):'0'}:{})})),edges:Array.from({length:count-1},(_,i)=>({id:`e${i}`,source:deep?String(i):'0',target:String(i+1)}))});
+ expect(validateDocument(tree(2000,false)).nodes.length).toBe(2000);expect(()=>validateDocument(tree(2001,false))).toThrow();expect(validateDocument(tree(101,true)).nodes.length).toBe(101);expect(()=>validateDocument(tree(102,true))).toThrow();
+ const d=tree(1,false);d.nodes[0].label='长'.repeat(2000);expect(validateDocument(d).nodes[0].label.length).toBe(2000);d.nodes[0].label+='长';expect(()=>validateDocument(d)).toThrow();
+ const before=await readFile(join(dir,'workspace.json'),'utf8');for(const backup of [null,{version:99}, {...s.snapshot(),maps:[{...s.snapshot().maps[0],undo:'corrupt'}]}]) await expect(s.command({type:'import',backup})).rejects.toThrow();expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
+}));
+test('approved subtree removal and undo survive restart; newer edits invalidate proposals',async()=>fixture(async(s,dir)=>{
+ let m=s.snapshot().maps[0];const root=m.document.nodes[0];const doc={...m.document,nodes:[root,{...root,id:'child',parentId:root.id},{...root,id:'grand',parentId:'child'}],edges:[{id:'one',source:root.id,target:'child'},{id:'two',source:'child',target:'grand'}]};
+ await s.command({type:'save',id:m.id,revision:0,document:doc});const p=s.propose(m.id,1,m.document,'Delete subtree');await s.approve(p.id);
+ const restarted=new PersonalStore(dir);await restarted.init();await restarted.command({type:'undo',id:m.id,revision:2});const again=new PersonalStore(dir);await again.init();expect(again.snapshot().maps[0].document).toEqual(validateDocument(doc));
+ m=again.snapshot().maps[0];const stale=again.propose(m.id,m.revision,changed(m),'stale');await again.command({type:'save',id:m.id,revision:m.revision,document:{...m.document,nodes:m.document.nodes.map(n=>({...n,label:'Local edit'}))}});const preserved=await readFile(join(dir,'workspace.json'),'utf8');await expect(again.approve(stale.id)).rejects.toThrow('Revision conflict');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(preserved);
+}));

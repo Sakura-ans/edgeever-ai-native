@@ -3,6 +3,7 @@ import {createRoot} from 'react-dom/client';
 import {Graph} from '@antv/x6';
 import type {DiagramDocument} from '@edgeever/shared';
 import './personal.css';
+import {describeProposal,outlinePaths} from './proposal-diff';
 
 type MindMap = {id:string;title:string;revision:number;document:DiagramDocument;undo:DiagramDocument[];redo:DiagramDocument[]};
 type Workspace = {version:1;revision:number;maps:MindMap[]};
@@ -35,7 +36,7 @@ function Canvas({document,selected,onSelect,onMove,preview=false}:{document:Diag
     for (const n of document.nodes) g.addNode({id:n.id,x:n.x,y:n.y,width:n.width,height:n.height,label:n.label,attrs:{body:{fill:n.id === selected ? '#e6eee9':'#fff',stroke:n.id === selected ? '#07130b':'#b7c3ba',rx:8,ry:8},label:{fill:'#17241b',fontSize:14,textWrap:{width:-16,height:-8,ellipsis:true}}}});
     for (const e of document.edges) g.addEdge({id:e.id,source:e.source,target:e.target,attrs:{line:{stroke:'#7c9182',targetMarker:null}},connector:{name:'rounded'}});
   },[document,selected]);
-  return <div className="canvas" ref={host}/>;
+  return <div className="canvas-stage"><div className="canvas" ref={host}/><button className="canvas-fit" onClick={() => graph.current?.zoomToFit({padding:24,maxScale:1})}>适应画布</button></div>;
 }
 function App() {
   const [workspace,setWorkspace] = useState<Workspace>({version:1,revision:0,maps:[]});
@@ -43,7 +44,7 @@ function App() {
   const [busy,setBusy] = useState(false), [error,setError] = useState(''), [status,setStatus] = useState('加载本地工作区…');
   const [newTitle,setNewTitle] = useState<string|null>(null);
   const [label,setLabel] = useState(''), [mapTitle,setMapTitle] = useState('');
-  const [settings,setSettings] = useState(false), [model,setModel] = useState(''), [key,setKey] = useState(''), [hasKey,setHasKey] = useState(false);
+  const [settings,setSettings] = useState(false), [model,setModel] = useState('deepseek-flash'), [key,setKey] = useState(''), [hasKey,setHasKey] = useState(false);
   const [prompt,setPrompt] = useState(''), [answer,setAnswer] = useState(''), [running,setRunning] = useState(false), [proposals,setProposals] = useState<Proposal[]>([]);
   const pending = useRef(Promise.resolve());
   const latest = useRef(workspace); latest.current = workspace;
@@ -105,6 +106,9 @@ function App() {
     catch(e) {setError(String(e));} finally {setRunning(false);}
   }
   const proposal = proposals[0];
+  const proposalMap = proposal && workspace.maps.find(m => m.id === proposal.mapId);
+  const stale = !!proposal && (!proposalMap || proposalMap.revision !== proposal.revision);
+  const changes = proposal && proposalMap && !stale ? describeProposal(proposalMap.document,proposal.document) : [];
   const outline = (parent:string|undefined,depth=0):React.ReactNode => map?.document.nodes.filter(n => n.parentId === parent).map(n => <React.Fragment key={n.id}><button className={`outline ${node?.id === n.id ? 'selected':''}`} style={{paddingLeft:12+depth*16}} onClick={() => setSelected(n.id)}>{n.label || '空主题'}</button>{outline(n.id,depth+1)}</React.Fragment>);
   return <div className="app">
     <header><strong>EdgeEver <span>Mind</span></strong><small>个人思维导图 · 本地优先</small><span className="spacer"/><span role="status">{status}</span><button onClick={() => {setSettings(!settings);void bridge?.config().then(c => {setModel(c.model);setHasKey(c.hasKey);}).catch(e => setError(String(e)));}}>DeepSeek 设置</button></header>
@@ -122,8 +126,15 @@ function App() {
       <aside className="assistant"><h2>AI 助手</h2><p>仅点击发送后，将当前导图发送给 DeepSeek。所有修改先预览确认。</p><textarea aria-label="AI 请求" value={prompt} onChange={e => setPrompt(e.target.value)} placeholder="例如：把这个想法整理成三个阶段…"/><button disabled={!map || running || busy || !prompt.trim()} onClick={() => void ask()}>发送给 DeepSeek</button>{running && <button onClick={() => void bridge?.cancel()}>停止</button>}<pre aria-live="polite">{answer}</pre></aside>
     </div>
     {newTitle !== null && <div className="overlay"><form className="dialog" role="dialog" aria-modal="true" aria-label="新建导图" onSubmit={event => {event.preventDefault();void perform(async () => {const next=await bridge!.command({type:'create',title:newTitle});setActive(next.maps.at(-1)!.id);setSelected('');setNewTitle(null);return next;});}}><h2>新建导图</h2><label>新导图名称<input autoFocus maxLength={200} value={newTitle} onChange={event => setNewTitle(event.target.value)}/></label><div className="actions"><button type="button" onClick={() => setNewTitle(null)}>取消</button><button type="submit" disabled={busy || !newTitle.trim()}>创建</button></div></form></div>}
-    {settings && <div className="overlay"><section className="dialog" role="dialog" aria-modal="true" aria-label="DeepSeek 设置"><h2>DeepSeek 设置</h2><p>凭据使用操作系统安全存储加密。模型标识由您填写。</p><label>模型标识<input value={model} onChange={e => setModel(e.target.value)}/></label><label>API Key {hasKey && '（已保存；留空保留）'}<input type="password" autoComplete="off" value={key} onChange={e => setKey(e.target.value)}/></label><small>端点：https://api.deepseek.com/anthropic</small><div className="actions"><button onClick={() => {setSettings(false);setKey('');}}>关闭</button><button disabled={busy} onClick={() => void perform(async () => {await bridge!.clearConfig();setHasKey(false);setKey('');})}>删除凭据</button><button disabled={busy} onClick={() => void perform(async () => {await bridge!.saveConfig({model,apiKey:key});setKey('');setHasKey(true);setSettings(false);})}>保存设置</button></div></section></div>}
-    {proposal && <div className="overlay"><section className="dialog proposal" role="dialog" aria-modal="true" aria-label="AI 修改预览"><h2>确认 AI 修改</h2><p>{proposal.summary}</p><p>目标：{workspace.maps.find(m => m.id === proposal.mapId)?.title ?? '已删除导图'} · 基于版本 {proposal.revision}</p><div className="comparison"><section><h3>当前版本</h3><pre>{JSON.stringify(workspace.maps.find(m => m.id === proposal.mapId)?.document,null,2)}</pre></section><section><h3>提案（完整结构与内容）</h3><pre>{JSON.stringify(proposal.document,null,2)}</pre></section></div><div className="actions"><button onClick={() => void bridge!.reject(proposal.id).then(() => setProposals(p => p.slice(1)))}>拒绝，不修改</button><button disabled={busy} onClick={() => void perform(async () => {try {return await bridge!.approve(proposal.id);} finally {setProposals(p => p.slice(1));}})}>确认应用 · 可撤销</button></div></section></div>}
+    {settings && <div className="overlay"><section className="dialog" role="dialog" aria-modal="true" aria-label="DeepSeek 设置"><h2>DeepSeek 设置</h2><p>凭据使用操作系统安全存储加密。默认模型为 deepseek-flash，可按需修改。</p><label>模型标识<input value={model} onChange={e => setModel(e.target.value)}/></label><label>API Key {hasKey && '（已保存；留空保留）'}<input type="password" autoComplete="off" value={key} onChange={e => setKey(e.target.value)}/></label><small>端点：https://api.deepseek.com/anthropic</small><div className="actions"><button onClick={() => {setSettings(false);setKey('');}}>关闭</button><button disabled={busy} onClick={() => void perform(async () => {await bridge!.clearConfig();setHasKey(false);setKey('');})}>删除凭据</button><button disabled={busy} onClick={() => void perform(async () => {await bridge!.saveConfig({model,apiKey:key});setKey('');setHasKey(true);setSettings(false);})}>保存设置</button></div></section></div>}
+    {proposal && <div className="overlay"><section className="dialog proposal" role="dialog" aria-modal="true" aria-label="AI 修改预览"><h2>确认 AI 修改</h2><p>{proposal.summary}</p><p>目标：{proposalMap?.title ?? '已删除导图'} · 基于版本 {proposal.revision} · 尚未写入</p>
+      {stale ? <p className="conflict" role="alert">导图已发生变化，此提案已过期。请拒绝后重新请求 AI 修改。</p> : <>
+        <div className="change-counts">{(['新增','删除','重命名','移动','其他调整'] as const).map(kind=><span key={kind}>{kind} <b>{changes.filter(c=>c.kind===kind).length}</b></span>)}</div>
+        {!changes.length && <p>没有实际变更，无需应用。</p>}
+        <div className="change-list">{changes.map((change,index)=><article className="change-card" key={index}><h3><span className={`change-badge change-${change.kind}`}>{change.kind}</span> {change.detail}</h3><div className="change-pair"><div><small>修改前</small><p>{change.before}</p></div><div><small>修改后</small><p>{change.after}</p></div></div></article>)}</div>
+        <details className="full-outline"><summary>查看修改前后的完整大纲</summary><div className="change-pair">{[proposalMap!.document,proposal.document].map((doc,index)=><section key={index}><h3>{index ? '修改后':'修改前'}</h3><ol>{outlinePaths(doc).map(n=><li key={n.id}>{n.path}</li>)}</ol></section>)}</div></details>
+      </>}
+      <div className="actions"><button onClick={() => void bridge!.reject(proposal.id).then(() => setProposals(p => p.slice(1)))}>拒绝，不修改</button><button disabled={busy || stale || !changes.length} onClick={() => void perform(async () => {try {return await bridge!.approve(proposal.id);} finally {setProposals(p => p.slice(1));}})}>确认应用 · 可撤销</button></div></section></div>}
   </div>;
 }
 createRoot(document.getElementById('root')!).render(<App/>);

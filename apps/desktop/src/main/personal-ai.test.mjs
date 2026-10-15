@@ -58,3 +58,11 @@ test('SDK failures are sanitized, temporary workspace removed, and cancellation 
   const running=requests.ask({id:m.id,revision:0,prompt:'Synthetic'});await ready;requests.cancel();await expect(running).rejects.toThrow('AI request failed or cancelled');expect(removed).toBe(true);expect(store.snapshot().maps[0].revision).toBe(0);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('request timeout aborts mock SDK, cleans up, never saves and allows retry',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'mind-timeout-'));try{
+ const store=new PersonalStore(dir);await store.init();await store.command({type:'create',title:'Timeout fixture'});const m=store.snapshot().maps[0],before=await readFile(join(dir,'workspace.json'),'utf8');let removed=0,attempt=0;
+ const requests=createPersonalAgentRequests({store,timeoutMs:10,readConfig:async()=>({model:'mock',apiKey:'mock'}),makeDirectory:async()=>dir,removeDirectory:async()=>{removed++;},emit:()=>{},runAgent:async({signal})=>{if(attempt++===0) await new Promise((_r,reject)=>signal.addEventListener('abort',()=>reject(new Error('mock abort')),{once:true}));}});
+ await expect(requests.ask({id:m.id,revision:0,prompt:'Timeout'})).rejects.toThrow('cancelled');expect(removed).toBe(1);expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);await requests.ask({id:m.id,revision:0,prompt:'Retry'});expect(removed).toBe(2);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});

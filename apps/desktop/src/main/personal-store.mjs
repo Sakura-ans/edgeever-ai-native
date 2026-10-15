@@ -107,9 +107,10 @@ export class PersonalStore {
     });
   }
   propose(id, revision, document, summary) {
-    this.map(this.state,id,revision);
+    const current = this.map(this.state,id,revision);
     if (this.proposals.size >= 20) throw new Error('Too many pending proposals');
     const proposal = {id:randomUUID(),mapId:id,revision,document:validateDocument(document),summary:String(summary).slice(0,2000)};
+    if (JSON.stringify(proposal.document) === JSON.stringify(current.document)) throw new Error('没有实际变更，无需提交提案');
     this.proposals.set(proposal.id,clone(proposal));
     return clone(proposal);
   }

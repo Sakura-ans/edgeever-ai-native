@@ -22,7 +22,7 @@ const secure = () => {
 const readConfig = async () => {
   secure();
   try { return JSON.parse(safeStorage.decryptString(await readFile(configPath()))); }
-  catch (e) { if (e.code === 'ENOENT') return {model:'',apiKey:''}; throw new Error('Cannot decrypt saved credentials'); }
+  catch (e) { if (e.code === 'ENOENT') return {model:'deepseek-flash',apiKey:''}; throw new Error('Cannot decrypt saved credentials'); }
 };
 function handle(name, fn) {
   ipcMain.handle(`mind:${name}`,async (event,...args) => {

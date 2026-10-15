@@ -70,7 +70,7 @@ shell 或文件工具。提案经校验后仅存在主进程内存中；只有�
 ## 验证与待验收项
 
 ```sh
-bun test apps/desktop/src/main/personal-store.test.mjs apps/desktop/src/main/personal-ai.test.mjs apps/web/src/lib/diagram-*.test.mjs
+bun scripts/test-personal.mjs
 bun run typecheck
 bun run typecheck:mobile
 EDGE_EVER_DESKTOP_BUILD=1 bun run build:web
@@ -95,3 +95,24 @@ AI 提案由调试器向真实存储注入，后续确认/拒绝走真实 IPC �
 是现有本地配置入口。CI 不能覆盖所有实体 Windows 硬件和系统组合。
 旧版迁移/升级没有实现或
 验证，新旧应用并行安装。断电耐久性、无障碍及大图长时间性能尚未验证。
+
+## 可读预览与可编辑项目示例
+
+预览以中文展示新增、删除、重命名、移动及其他调整的数量，并给出完整节点路径与
+前后对照。同名兄弟主题用序号区分；删除子树逐项列出受影响主题。位置、尺寸、
+排列和连接线标识变化均会提示，可展开完整大纲核对，不展示原始 JSON。
+空、非法或无实际修改的提案由存储层拒绝；已知过期提案禁止确认，确认时仍执行
+权威版本检查。请求两分钟后通过 SDK 中止控制器取消；取消与超时使用 mock 验证，
+尚未通过真实服务验证。
+
+固定端点为 `https://api.deepseek.com/anthropic`，非秘密默认模型为
+`deepseek-flash`，仍可修改。此默认值按用户要求设置，不代表已完成真实兼容性或
+计费验证。
+
+通过“导入备份为副本”打开 `examples/edgeever-mind-project.json`。这是包含 28 个
+主题的原生可编辑备份，由 `scripts/create-personal-project-map.mjs` 程序生成，
+并非 DeepSeek 生成，明确标记已实现能力和待验项目。“适应画布”可显示全图。
+原生验收脚本实际导入、编辑、撤销并重启恢复，再保存截图；导图、报告和截图均放入
+小型 Actions 证据附件。当前单元套件新增可读差异、节点数/深度/名称边界、循环移动、
+损坏/不支持版本导入、无变更拒绝、重启回滚及超时检查；不声称覆盖全部攻击输入或
+大图性能。

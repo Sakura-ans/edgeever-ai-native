@@ -1,6 +1,6 @@
 import {_electron as electron,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,rm,readFile,writeFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,rm,readFile,writeFile,copyFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join,resolve} from 'node:path';
 import {execFileSync,spawn} from 'node:child_process';
@@ -60,7 +60,7 @@ try {
   await page.getByRole('button',{name:'删除导图',exact:true}).click();await saved();assert.equal((await snapshot()).maps.length,1);
  });
  await bindLiveStore();
- await check('AI mock preview and rejection do not write to disk',async()=>{const before=await disk();await proposal('AI 合成修改');assert.equal(await disk(),before);await shot('06-ai-proposal-preview');await page.getByRole('button',{name:'拒绝，不修改'}).click();await expect(page.getByRole('dialog',{name:'AI 修改预览'})).toHaveCount(0);assert.equal(await disk(),before);await shot('07-ai-rejected-unchanged');});
+ await check('AI mock preview and rejection do not write to disk',async()=>{const before=await disk();await proposal('AI 合成修改');assert.equal(await disk(),before);await expect(page.locator('.change-card')).toHaveCount(1);await expect(page.locator('.change-card')).toContainText('重命名');assert.equal(await page.locator('.proposal pre').count(),0);await shot('06-ai-proposal-preview');await page.getByRole('button',{name:'拒绝，不修改'}).click();await expect(page.getByRole('dialog',{name:'AI 修改预览'})).toHaveCount(0);assert.equal(await disk(),before);await shot('07-ai-rejected-unchanged');});
  await check('AI mock approval, duplicate approval rejection, undo rollback',async()=>{
   const original=(await snapshot()).maps[0].document;await proposal('AI 已确认主题');const id=await application.evaluate(()=>[...globalThis.__qaStore.proposals.keys()][0]);
   await page.getByRole('button',{name:'确认应用 · 可撤销'}).click();await saved();assert.equal((await snapshot()).maps[0].document.nodes[0].label,'AI 已确认主题');const before=await disk();
@@ -87,7 +87,17 @@ try {
   await application.evaluate(({safeStorage})=>{safeStorage.isEncryptionAvailable=globalThis.__qaSecure;});await page.getByRole('button',{name:'关闭',exact:true}).click();await page.getByRole('button',{name:'重新读取'}).click();await saved();
  });
  await check('close immediately after typing drains queued saves',async()=>{await page.getByLabel('主题内容').fill('退出前最后一次合成修改');await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());await application.close();application=null;await launch();assert.ok((await snapshot()).maps[0].document.nodes.some(n=>n.label==='退出前最后一次合成修改'));await page.locator('.outline').filter({hasText:'退出前最后一次合成修改'}).click();await expect(page.getByLabel('主题内容')).toHaveValue('退出前最后一次合成修改');await shot('15-close-save-restored');});
- await check('no renderer exceptions',async()=>assert.deepEqual(errors,[]));
+ await check('readable multi-change proposal shows paths, counts and zero-write rejection',async()=>{
+  await bindLiveStore();const before=await disk();
+  await application.evaluate(({BrowserWindow})=>{const store=globalThis.__qaStore,m=store.snapshot().maps[0],doc=structuredClone(m.document);doc.nodes[0].label='新项目名称';const leaf=doc.nodes.pop();doc.edges=doc.edges.filter(e=>e.target!==leaf.id);const child=doc.nodes[1];child.label='新的准备清单';const root=doc.nodes[0];doc.nodes.push({...root,id:'synthetic-new',parentId:root.id,label:'新增：安全验收'});doc.edges.push({id:'synthetic-edge',source:root.id,target:'synthetic-new'});const p=store.propose(m.id,m.revision,doc,'程序合成的预览验收：删除一项，新增一项，重命名两个主题。');BrowserWindow.getAllWindows()[0].webContents.send('mind:agent-event',{type:'proposal',proposal:p});});
+  await expect(page.getByRole('dialog',{name:'AI 修改预览'})).toBeVisible();await expect(page.locator('.change-counts')).toContainText('新增 1');await expect(page.locator('.change-counts')).toContainText('删除 1');await expect(page.locator('.change-counts')).toContainText('重命名 2');await expect(page.locator('.change-card')).toHaveCount(4);await shot('17-readable-chinese-preview');await page.getByRole('button',{name:'拒绝，不修改'}).click();assert.equal(await disk(),before);
+ });
+ await check('project map imports, opens, edits, undoes and survives restart',async()=>{
+  const sample=resolve('examples/edgeever-mind-project.json');await copyFile(sample,join(output,'edgeever-mind-project.json'));await picker('open',sample);await page.getByRole('button',{name:'导入备份为副本'}).click();await saved();await page.getByRole('button',{name:'EdgeEver Mind 项目导图（程序生成）',exact:true}).click();await expect(page.locator('.outline')).toHaveCount(28);await page.getByRole('button',{name:'适应画布'}).click();await shot('18-project-map-native-editable');
+  const original=(await snapshot()).maps.at(-1);assert.equal(original.document.nodes.length,28);await page.getByLabel('主题内容').fill('项目导图 · 可编辑验证');await saved();await page.getByRole('button',{name:'撤销',exact:true}).click();await saved();assert.deepEqual((await snapshot()).maps.at(-1).document,original.document);await application.close();application=null;await launch();await page.getByRole('button',{name:'EdgeEver Mind 项目导图（程序生成）',exact:true}).click();await expect(page.locator('.outline')).toHaveCount(28);await page.getByRole('button',{name:'适应画布'}).click();await shot('19-project-map-restarted');
+ });
+ await check('default DeepSeek model is non-secret and configurable',async()=>{await page.getByRole('button',{name:'DeepSeek 设置'}).click();await expect(page.getByLabel('模型标识')).toHaveValue('deepseek-flash');await expect(page.locator('input[type=password]')).toHaveValue('');await shot('20-deepseek-default-no-key');await page.getByRole('button',{name:'关闭',exact:true}).click();});
+ await check('no renderer exceptions' ,async()=>assert.deepEqual(errors,[]));
  await application.close();application=null;
  if(process.platform==='win32') await check('corrupt on-disk workspace startup fails closed with native error dialog',async()=>{
   const corrupt=await mkdtemp(join(tmpdir(),'mind-corrupt-'));const data=join(corrupt,'EdgeEverMind','maps');await mkdir(data,{recursive:true});await writeFile(join(data,'workspace.json'),'CORRUPT-SYNTHETIC');
