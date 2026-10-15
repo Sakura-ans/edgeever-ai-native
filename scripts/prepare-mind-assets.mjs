@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {createRequire} from 'node:module';
-import {readFile,mkdir,copyFile,readdir,rm,writeFile} from 'node:fs/promises';
+import {readFile,mkdir,copyFile,readdir,rm,writeFile,realpath} from 'node:fs/promises';
 import {dirname,join,resolve} from 'node:path';
 const require=createRequire(resolve('apps/web/package.json'));
 const fontRoot=dirname(require.resolve('@fontsource-variable/noto-sans-sc/package.json'));
@@ -16,14 +16,20 @@ await writeFile(join(output,'fonts','noto-sans-sc.css'),css.replaceAll('./files/
 await copyFile(join(fontRoot,'LICENSE'),join(output,'licenses','NotoSansSC-OFL.txt'));
 await copyFile('LICENSE',join(output,'licenses','EdgeEver-AGPL-3.0.txt'));
 await copyFile('NOTICE',join(output,'licenses','NOTICE.txt'));
-// Retain notices from the installed direct runtime packages. Transitive package
-// licenses also remain in app.asar; the renderer dependencies are bundled here.
-for(const [workspace,names] of [['apps/web',['@antv/x6','react','react-dom']],['packages/shared',['@dagrejs/dagre','js-base64']],['apps/desktop',['@anthropic-ai/claude-agent-sdk','zod']]]){
- for(const name of names){
-  const dir=resolve(workspace,'node_modules',name);
-  for(const file of await readdir(dir))if(/^(license|notice|copyright)/i.test(file))await copyFile(join(dir,file),join(output,'licenses',`${name.replaceAll('/','-')}-${file}`));
+// Renderer dependencies are bundled, so include their transitive licenses too.
+const visited=new Set();
+async function notices(directory){
+ const dir=await realpath(directory);if(visited.has(dir))return;visited.add(dir);
+ const pkg=JSON.parse(await readFile(join(dir,'package.json'),'utf8'));
+ for(const file of await readdir(dir))if(/^(license|notice|copyright)/i.test(file))await copyFile(join(dir,file),join(output,'licenses',`${pkg.name.replaceAll('/','-')}-${pkg.version}-${file}`));
+ const req=createRequire(join(dir,'package.json'));
+ for(const dep of Object.keys(pkg.dependencies??{})){
+  let found=false;
+  for(const parent of req.resolve.paths(dep)??[]){const candidate=join(parent,dep);try{await readFile(join(candidate,'package.json'));}catch{continue;}await notices(candidate);found=true;break;}
+  if(!found)throw new Error(`Missing dependency notices: ${pkg.name} -> ${dep}`);
  }
 }
+for(const [workspace,names] of [['apps/web',['@antv/x6','react','react-dom']],['packages/shared',['@dagrejs/dagre','js-base64']],['apps/desktop',['@anthropic-ai/claude-agent-sdk','zod']]])for(const name of names)await notices(resolve(workspace,'node_modules',name));
 console.log(`Prepared ${files.length} unchanged local font partitions and license notices`);
 
 await copyFile('apps/desktop/node_modules/@anthropic-ai/claude-agent-sdk/README.md',join(output,'licenses','Claude-Agent-SDK-README.md'));

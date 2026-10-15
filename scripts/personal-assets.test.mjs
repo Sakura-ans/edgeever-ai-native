@@ -13,6 +13,7 @@ test('font source includes all upstream partitions and local-only urls with OFL 
  for(const f of files)expect((await readFile(join(root,f))).length).toBeGreaterThan(0);
  expect(await readFile(join(root,'LICENSE'),'utf8')).toContain('SIL OPEN FONT LICENSE');
  execFileSync(process.execPath,['scripts/prepare-mind-assets.mjs']);
+ expect(await readFile('apps/web/public/licenses/scheduler-0.27.0-LICENSE','utf8')).toContain('MIT');
  const manifest=JSON.parse(await readFile('apps/web/public/fonts/manifest.json','utf8'));
  expect(manifest.files.length).toBe(files.length);
  for(const f of files){const name=f.split('/').at(-1);const source=await readFile(join(root,f));const shipped=await readFile(join('apps/web/public/fonts',name));expect(shipped.equals(source)).toBe(true);expect(manifest.files.find(x=>x.file===name).sha256).toBe(createHash('sha256').update(source).digest('hex'));}
