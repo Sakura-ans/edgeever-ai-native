@@ -13,6 +13,8 @@ try {
  await expect(page.getByRole('button',{name:'＋ 新建导图'})).toBeVisible();
  page.on('dialog',dialog=>dialog.accept('Packaged offline smoke'));
  await page.getByRole('button',{name:'＋ 新建导图'}).click();
+ await page.getByLabel('新导图名称').fill('Packaged offline smoke');
+ await page.getByRole('button',{name:'创建',exact:true}).click();
  await page.getByLabel('主题内容').fill('Packaged save check');
  await expect(page.getByRole('status')).toHaveText('已保存到本机');
  await page.reload();

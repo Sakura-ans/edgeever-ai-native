@@ -18,6 +18,8 @@ try {
  page.on('dialog',dialog=>dialog.accept(dialog.type() === 'prompt' ? '离线测试导图' : undefined));
  await page.goto(process.env.MIND_TEST_URL ?? 'http://127.0.0.1:5173/personal.html');
  await page.getByRole('button',{name:'＋ 新建导图'}).click();
+ await page.getByLabel('新导图名称').fill('离线测试导图');
+ await page.getByRole('button',{name:'创建',exact:true}).click();
  await page.getByLabel('主题内容').waitFor();
  await page.getByLabel('主题内容').fill('独立本地根主题');
  await page.waitForFunction(()=>document.querySelector('[role="status"]')?.textContent === '已保存到本机');
