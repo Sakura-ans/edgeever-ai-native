@@ -294,6 +294,7 @@ export default defineConfig({
         },
     rolldownOptions: {
       input: {
+        personal: fileURLToPath(new URL("./personal.html", import.meta.url)),
         app: fileURLToPath(new URL("./index.html", import.meta.url)),
         "mobile-edit": fileURLToPath(new URL("./mobile-edit.html", import.meta.url)),
         "note-print": fileURLToPath(new URL("./note-print.html", import.meta.url)),

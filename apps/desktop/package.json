@@ -11,7 +11,9 @@
     "dev": "electron .",
     "start": "electron .",
     "dist": "electron-builder --config electron-builder.yml",
-    "verify-origin-migration": "electron ../../scripts/renderer-origin-verifier"
+    "verify-origin-migration": "electron ../../scripts/renderer-origin-verifier",
+    "dev:mind": "electron src/main/personal-main.mjs",
+    "dist:mind": "electron-builder --config electron-builder.mind.yml --publish never"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -19,6 +21,7 @@
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "^1.5.1",
+    "@anthropic-ai/claude-agent-sdk": "0.3.300",
     "@edgeever/public-network": "workspace:*",
     "croner": "^10.0.1",
     "electron-updater": "^6.6.2",

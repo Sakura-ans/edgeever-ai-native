@@ -1,0 +1,42 @@
+name: Personal Mind verification
+on:
+  push:
+    branches: ['feat/personal-mindmap-offline']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  checks:
+    if: github.repository == 'Sakura-ans/edgeever-ai-native'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun test apps/desktop/src/main/personal-store.test.mjs apps/desktop/src/main/personal-ai.test.mjs
+      - run: bun run typecheck
+      - run: bun run typecheck:mobile
+      - run: bun run build:web
+  windows:
+    if: github.repository == 'Sakura-ans/edgeever-ai-native'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - run: bun install --frozen-lockfile
+      - run: bun test apps/desktop/src/main/personal-store.test.mjs apps/desktop/src/main/personal-ai.test.mjs
+      - run: bun run build:web
+        env:
+          EDGE_EVER_DESKTOP_BUILD: '1'
+      - run: bun run --cwd apps/desktop dist:mind
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EdgeEver-Mind-Windows-preview
+          path: release/mind/*.exe
+          if-no-files-found: error

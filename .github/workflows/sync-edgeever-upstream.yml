@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   update:
-    if: github.repository != 'tianma-if/edgeever'
+    if: github.repository != 'tianma-if/edgeever' && github.repository != 'Sakura-ans/edgeever-ai-native'
     name: Sync Fork and trigger deployment
     runs-on: ubuntu-latest
     timeout-minutes: 20
