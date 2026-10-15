@@ -95,7 +95,11 @@ CHROMIUM_PATH=/usr/bin/chromium node scripts/verify-personal-mind.mjs
 The browser check uses the real local repository behind a mocked Electron bridge
 and synthetic data. It covers create/edit, outline/canvas, reload, undo/redo,
 proposal refusal/approval/rollback and browser errors. It is not an Electron IPC,
-Windows DPAPI, installer or first-offline-launch test. Required Windows acceptance:
+Windows DPAPI, installer or first-offline-launch test. A separate
+`scripts/verify-personal-package.mjs <unpacked executable>` smoke check exercises
+the real Electron bridge, create/save/reload and the bundled SDK binary without
+provider requests; it passed locally on Linux with a virtual display.
+Required Windows acceptance:
 install the generated EXE on a clean account; disconnect networking before first
 launch; create/edit/restart/backup/restore; test credential encryption and SDK
 native executable resolution in the installed package; then test DeepSeek with

@@ -19,14 +19,18 @@ try {
  await expect(page.getByRole('status')).toHaveText('已保存到本机');
  await page.reload();
  await expect(page.getByLabel('主题内容')).toHaveValue('Packaged save check');
- const nativePath=await application.evaluate(async ({app})=>{
-   const {pathToFileURL}=await import('node:url');
-   const path=await import('node:path');
-   const module=await import(pathToFileURL(path.join(app.getAppPath(),'src/main/personal-ai.mjs')).href);
-   const filename=module.resolvePersonalAgentExecutable();
-   const {existsSync}=await import('node:fs');
-   return {exists:existsSync(filename),unpacked:filename.includes('app.asar.unpacked')};
+ const nativePath=await application.evaluate(({app})=>{
+   // Inspector evaluation has no dynamic-import callback. Resolve dependencies
+   // through Node's built-in module API inside the packaged main process.
+   const {createRequire}=process.getBuiltinModule('module');
+   const path=process.getBuiltinModule('path');
+   const require=createRequire(path.join(app.getAppPath(),'package.json'));
+   const sdkRequire=createRequire(require.resolve('@anthropic-ai/claude-agent-sdk'));
+   const manifest=sdkRequire.resolve(`@anthropic-ai/claude-agent-sdk-${process.platform}-${process.arch}/package.json`);
+   const filename=path.join(path.dirname(manifest),process.platform === 'win32' ? 'claude.exe' : 'claude').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
+   const version=process.getBuiltinModule('child_process').execFileSync(filename,['--version'],{encoding:'utf8',timeout:10000});
+   return {exists:process.getBuiltinModule('fs').existsSync(filename),unpacked:filename.includes('app.asar.unpacked'),version};
  });
- expect(nativePath).toEqual({exists:true,unpacked:true});
+ expect(nativePath.exists).toBe(true);expect(nativePath.unpacked).toBe(true);expect(nativePath.version).toContain('Claude Code');
  console.log('PASS: unpacked Electron launch, local create/save/reload, bundled SDK native binary; no provider calls');
 } finally {if(application) await application.close();await rm(profile,{recursive:true,force:true,maxRetries:5,retryDelay:500});}

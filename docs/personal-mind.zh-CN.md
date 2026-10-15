@@ -77,7 +77,10 @@ CHROMIUM_PATH=/usr/bin/chromium node scripts/verify-personal-mind.mjs
 
 浏览器测试使用真实本地仓库、mock Electron bridge 和合成数据，覆盖创建/编辑、
 画布/大纲、刷新、撤销重做、提案拒绝/确认/回滚及页面异常。它不能替代 Electron
-IPC、Windows DPAPI、安装或首次离线启动测试。Windows 必须继续验收：干净账号
+IPC、Windows DPAPI、安装或首次离线启动测试。另有
+`scripts/verify-personal-package.mjs <解包后的程序>` 检查真实 Electron bridge、
+创建/保存/重载及包内 SDK 程序，已在 Linux 虚拟显示环境通过且未调用模型。
+Windows 必须继续验收：干净账号
 安装 EXE，首次启动前断网，创建/编辑/重启/备份/恢复，凭据加密，以及安装包内 SDK
 原生程序解析；真实 DeepSeek 测试须另行明确授权密钥。旧版迁移/升级没有实现或
 验证，新旧应用并行安装。断电耐久性、无障碍及大图长时间性能尚未验证。
