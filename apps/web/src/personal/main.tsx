@@ -23,7 +23,7 @@ function Canvas({document,selected,onSelect,onMove,preview=false}:{document:Diag
   const graph = useRef<Graph|null>(null);
   const callbacks = useRef({onSelect,onMove}); callbacks.current = {onSelect,onMove};
   useEffect(() => {
-    const g = new Graph({container:host.current!,autoResize:true,background:{color:'#fafafa'},grid:true,panning:true,mousewheel:{enabled:true,modifiers:['ctrl','meta']},interacting:{nodeMovable:!preview,edgeMovable:false,arrowheadMovable:false}});
+    const g = new Graph({container:host.current!,async:false,autoResize:true,background:{color:'#fafafa'},grid:true,panning:true,mousewheel:{enabled:true,modifiers:['ctrl','meta']},interacting:{nodeMovable:!preview,edgeMovable:false,arrowheadMovable:false}});
     graph.current = g;
     g.on('node:click',({node}) => callbacks.current.onSelect(node.id));
     g.on('node:moved',({node}) => { const p = node.position(); callbacks.current.onMove(node.id,p.x,p.y); });

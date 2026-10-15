@@ -99,10 +99,22 @@ Windows DPAPI, installer or first-offline-launch test. A separate
 `scripts/verify-personal-package.mjs <unpacked executable>` smoke check exercises
 the real Electron bridge, create/save/reload and the bundled SDK binary without
 provider requests; it passed locally on Linux with a virtual display.
-Required Windows acceptance:
-install the generated EXE on a clean account; disconnect networking before first
-launch; create/edit/restart/backup/restore; test credential encryption and SDK
-native executable resolution in the installed package; then test DeepSeek with
-an explicitly authorized key. Original-to-personal upgrade/migration is neither
+The Windows evidence workflow now also runs an actual silent NSIS installation,
+blocks outbound traffic for the app and bundled SDK before fresh-profile launch,
+and executes `verify-personal-acceptance.mjs` on the installed executable. The
+Actions evidence artifact is authoritative for each run and includes screenshots,
+case results, installation details, and test logs. AI proposals are synthetic
+debugger injections into the live store; they exercise real approval IPC and
+filesystem writes without provider calls. Native file picker choices and
+secure-storage failure are injected; Windows encryption success uses real
+safeStorage with a synthetic key. Baseline 49 tests are reproduced separately
+from the expanded current suite.
+
+Remaining acceptance:
+real DeepSeek requests need a secure credential input route and explicit small
+budget/data-scope approval. No secure Vault or secret-input tool was available
+during this task; do not send a key in chat or commit it. The app settings dialog
+is the available local entry point. CI checks do not substitute for every
+physical Windows hardware/OS configuration. Original-to-personal upgrade/migration is neither
 implemented nor validated; the apps install side by side. Power-loss durability,
 accessibility, and long-running large-map performance remain unverified.

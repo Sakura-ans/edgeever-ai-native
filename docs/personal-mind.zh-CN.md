@@ -80,7 +80,15 @@ CHROMIUM_PATH=/usr/bin/chromium node scripts/verify-personal-mind.mjs
 IPC、Windows DPAPI、安装或首次离线启动测试。另有
 `scripts/verify-personal-package.mjs <解包后的程序>` 检查真实 Electron bridge、
 创建/保存/重载及包内 SDK 程序，已在 Linux 虚拟显示环境通过且未调用模型。
-Windows 必须继续验收：干净账号
-安装 EXE，首次启动前断网，创建/编辑/重启/备份/恢复，凭据加密，以及安装包内 SDK
-原生程序解析；真实 DeepSeek 测试须另行明确授权密钥。旧版迁移/升级没有实现或
+Windows 证据工作流新增真实 NSIS 静默安装，在首次打开全新工作区前阻断应用与 SDK
+出站网络，并对安装后的程序执行 `verify-personal-acceptance.mjs`。每轮 Actions
+证据产物包含实际截图、逐项结果、安装信息与测试日志，具体状态以该轮产物为准。
+AI 提案由调试器向真实存储注入，后续确认/拒绝走真实 IPC 和文件写入，不调用模型。
+文件选择与安全存储失败采用故障注入；Windows 加密成功路径使用真实 safeStorage
+和合成密钥。基线 49 项测试与当前扩展套件分别复现并记录。
+
+真实 DeepSeek 仍需要安全密钥输入方式，以及明确的小额预算和数据范围批准。
+本轮工具没有可用的 Vault 或安全密钥输入，不要在聊天或仓库提交密钥；应用设置
+是现有本地配置入口。CI 不能覆盖所有实体 Windows 硬件和系统组合。
+旧版迁移/升级没有实现或
 验证，新旧应用并行安装。断电耐久性、无障碍及大图长时间性能尚未验证。

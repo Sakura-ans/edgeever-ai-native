@@ -3,7 +3,7 @@ import {mkdtemp,rm,readFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {PersonalStore} from './personal-store.mjs';
-import {runPersonalAgent,personalAgentEnvironment} from './personal-ai.mjs';
+import {runPersonalAgent,personalAgentEnvironment,createPersonalAgentRequests} from './personal-ai.mjs';
 test('mock SDK only reads/submits proposals; no built-in tools or settings; no database writes',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'mind-ai-test-'));
  try {
@@ -35,4 +35,26 @@ test('mock SDK only reads/submits proposals; no built-in tools or settings; no d
 test('provider credentials and routing cannot leak in from the launching shell',()=>{
  const env=personalAgentEnvironment({apiKey:'synthetic-key',model:'synthetic-model'},'/temporary-agent',{PATH:'/bin',CLAUDE_CODE_USE_BEDROCK:'1',ANTHROPIC_API_KEY:'unrelated-key',ANTHROPIC_CUSTOM_HEADERS:'unrelated-auth',CLAUDE_CODE_OAUTH_TOKEN:'unrelated-token'});
  expect(env.PATH).toBe('/bin');expect(env.ANTHROPIC_AUTH_TOKEN).toBe('synthetic-key');expect(env.CLAUDE_CODE_USE_BEDROCK).toBeUndefined();expect(env.ANTHROPIC_API_KEY).toBeUndefined();expect(env.ANTHROPIC_CUSTOM_HEADERS).toBeUndefined();expect(env.CLAUDE_CODE_OAUTH_TOKEN).toBeUndefined();
+});
+
+test('request reservation prevents duplicate clicks during async credentials and supports early cancel',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'mind-request-test-'));
+ try {
+  const store=new PersonalStore(dir);await store.init();await store.command({type:'create',title:'Synthetic'});const m=store.snapshot().maps[0];
+  let ready;let called=0;const config=new Promise(resolve=>{ready=resolve;});
+  const requests=createPersonalAgentRequests({store,readConfig:()=>config,makeDirectory:async()=>dir,removeDirectory:async()=>{},runAgent:async()=>{called++;},emit:()=>{}});
+  const first=requests.ask({id:m.id,revision:0,prompt:'Synthetic'});
+  await expect(requests.ask({id:m.id,revision:0,prompt:'Duplicate'})).rejects.toThrow('already running');
+  requests.cancel();ready({model:'fake',apiKey:'fake'});await expect(first).rejects.toThrow('cancelled');expect(called).toBe(0);
+  await requests.ask({id:m.id,revision:0,prompt:'Retry'});expect(called).toBe(1);expect(store.snapshot().maps[0].revision).toBe(0);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+test('SDK failures are sanitized, temporary workspace removed, and cancellation reaches the running agent',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'mind-request-test-'));
+ try {
+  const store=new PersonalStore(dir);await store.init();await store.command({type:'create',title:'Synthetic'});const m=store.snapshot().maps[0];
+  let removed=false;let started;const ready=new Promise(r=>started=r);
+  const requests=createPersonalAgentRequests({store,readConfig:async()=>({model:'fake',apiKey:'synthetic-secret'}),makeDirectory:async()=>dir,removeDirectory:async()=>{removed=true;},emit:()=>{},runAgent:({signal})=>new Promise((_resolve,reject)=>{started();signal.addEventListener('abort',()=>reject(new Error('synthetic-secret')));})});
+  const running=requests.ask({id:m.id,revision:0,prompt:'Synthetic'});await ready;requests.cancel();await expect(running).rejects.toThrow('AI request failed or cancelled');expect(removed).toBe(true);expect(store.snapshot().maps[0].revision).toBe(0);
+ }finally{await rm(dir,{recursive:true,force:true});}
 });

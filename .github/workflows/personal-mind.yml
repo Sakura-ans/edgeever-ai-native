@@ -16,10 +16,33 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun test apps/desktop/src/main/personal-store.test.mjs apps/desktop/src/main/personal-ai.test.mjs
+      - name: Reproduce baseline 49 tests
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          git fetch --depth=1 origin a9433f1460bdecc5e89d95ee093fceab91808ebc
+          git worktree add --detach "$RUNNER_TEMP/mind-baseline" a9433f1460bdecc5e89d95ee093fceab91808ebc
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/mind-baseline/node_modules"
+          for workspace in apps/web apps/desktop packages/shared; do
+            ln -s "$GITHUB_WORKSPACE/$workspace/node_modules" "$RUNNER_TEMP/mind-baseline/$workspace/node_modules"
+          done
+          set -o pipefail
+          (cd "$RUNNER_TEMP/mind-baseline" && bun "$GITHUB_WORKSPACE/scripts/test-personal.mjs") 2>&1 | tee artifacts/baseline-49-tests.log
+          git worktree remove --force "$RUNNER_TEMP/mind-baseline"
+      - name: Unit tests and evidence
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          set -o pipefail
+          bun scripts/test-personal.mjs 2>&1 | tee artifacts/unit-tests.log
       - run: bun run typecheck
       - run: bun run typecheck:mobile
       - run: bun run build:web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EdgeEver-Mind-Linux-test-evidence
+          path: artifacts/
   windows:
     if: github.repository == 'Sakura-ans/edgeever-ai-native'
     runs-on: windows-latest
@@ -30,7 +53,12 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - run: bun test apps/desktop/src/main/personal-store.test.mjs apps/desktop/src/main/personal-ai.test.mjs
+      - name: Unit tests and evidence
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          bun scripts/test-personal.mjs 2>&1 | Tee-Object -FilePath artifacts/unit-tests.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - run: bun run build:web
         env:
           EDGE_EVER_DESKTOP_BUILD: '1'
@@ -39,6 +67,37 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Smoke test packaged desktop
         run: node scripts/verify-personal-package.mjs release/mind/win-unpacked/EdgeEverMind.exe
+      - name: Install NSIS and block network before fresh-profile launch
+        shell: pwsh
+        run: |
+          $installPath = Join-Path $env:RUNNER_TEMP 'EdgeEverMind-acceptance-install'
+          $program = Join-Path $installPath 'EdgeEverMind.exe'
+          New-NetFirewallRule -DisplayName 'EdgeEverMind-QA-offline-app' -Direction Outbound -Program $program -Action Block | Out-Null
+          $sdk = Join-Path $installPath 'resources\app.asar.unpacked\node_modules\@anthropic-ai\claude-agent-sdk-win32-x64\claude.exe'
+          New-NetFirewallRule -DisplayName 'EdgeEverMind-QA-offline-sdk' -Direction Outbound -Program $sdk -Action Block | Out-Null
+          $installer = Get-ChildItem release/mind -Filter '*.exe' | Select-Object -First 1
+          $result = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installPath") -Wait -PassThru
+          if ($result.ExitCode -ne 0 -or !(Test-Path $program)) { throw "NSIS installation failed: $($result.ExitCode)" }
+          Get-Process -Name EdgeEverMind -ErrorAction SilentlyContinue | Stop-Process -Force
+          @{installer=$installer.Name;exitCode=$result.ExitCode;installedExecutable=$program;firewallRules=@(Get-NetFirewallRule -DisplayName 'EdgeEverMind-QA-offline-*' | Select-Object DisplayName,Enabled,Direction,Action)} | ConvertTo-Json -Depth 5 | Set-Content artifacts/installation.json
+          "MIND_INSTALLED_EXECUTABLE=$program" >> $env:GITHUB_ENV
+      - name: Installed Windows acceptance and screenshots
+        run: node scripts/verify-personal-acceptance.mjs "$env:MIND_INSTALLED_EXECUTABLE"
+        env:
+          MIND_QA_OUTPUT: artifacts/personal-acceptance
+          MIND_INSTALLER_TESTED: '1'
+          MIND_OFFLINE_FIREWALL: '1'
+      - name: Upload test evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EdgeEver-Mind-Windows-test-evidence
+          path: artifacts/
+          if-no-files-found: error
+      - name: Remove test firewall rules
+        if: always()
+        shell: pwsh
+        run: Get-NetFirewallRule -DisplayName 'EdgeEverMind-QA-offline-*' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
       - uses: actions/upload-artifact@v4
         with:
           name: EdgeEver-Mind-Windows-preview

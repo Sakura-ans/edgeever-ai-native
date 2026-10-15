@@ -64,3 +64,28 @@ export async function runPersonalAgent({store,mapId,revision,prompt,config,onEve
     }
   } finally { signal?.removeEventListener('abort',cancel); }
 }
+
+// Reserve the request slot before any credential or filesystem await.
+export function createPersonalAgentRequests({store,readConfig,makeDirectory,removeDirectory,emit,runAgent=runPersonalAgent}) {
+  let active;
+  return {
+    cancel() { active?.abort(); return true; },
+    async ask(input) {
+      if (active) throw new Error('An AI request is already running');
+      if (!input || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 10000) throw new Error('Invalid prompt');
+      store.map(store.snapshot(),input.id,input.revision);
+      const controller = new AbortController(); active = controller;
+      let directory;
+      try {
+        const config = await readConfig();
+        if (!config.apiKey || !config.model) throw new Error('Configure DeepSeek first');
+        if (controller.signal.aborted) throw new Error('Cancelled');
+        directory = await makeDirectory();
+        if (controller.signal.aborted) throw new Error('Cancelled');
+        await runAgent({store,mapId:input.id,revision:input.revision,prompt:input.prompt,config,signal:controller.signal,workingDirectory:directory,onEvent:emit});
+        return true;
+      } catch { throw new Error('AI request failed or cancelled. No automatic map changes were made.'); }
+      finally { try { if (directory) await removeDirectory(directory); } finally { active = null; } }
+    },
+  };
+}

@@ -4,7 +4,7 @@ import { join, dirname, resolve, relative, isAbsolute } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { PersonalStore } from './personal-store.mjs';
-import { runPersonalAgent } from './personal-ai.mjs';
+import { createPersonalAgentRequests } from './personal-ai.mjs';
 
 // Separate identity prevents reading/migrating original EdgeEver account data.
 app.setName('EdgeEver Mind');
@@ -12,7 +12,7 @@ app.setPath('userData',join(app.getPath('appData'),'EdgeEverMind'));
 protocol.registerSchemesAsPrivileged([{scheme:'edgeever-mind',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
-let window, store, activeAgent;
+let window, store, agentRequests;
 const here = dirname(fileURLToPath(import.meta.url));
 const configPath = () => join(app.getPath('userData'),'deepseek.bin');
 const secure = () => {
@@ -61,22 +61,13 @@ app.whenReady().then(async () => {
     return true;
   });
   handle('clear-config',async () => { await rm(configPath(),{force:true}); return true; });
-  handle('cancel',() => { activeAgent?.abort(); return true; });
-  handle('ask',async input => {
-    if (activeAgent) throw new Error('An AI request is already running');
-    if (!input || typeof input.prompt !== 'string' || !input.prompt.trim() || input.prompt.length > 10000) throw new Error('Invalid prompt');
-    store.map(store.snapshot(),input.id,input.revision);
-    const config = await readConfig();
-    if (!config.apiKey || !config.model) throw new Error('Configure DeepSeek first');
-    const controller = new AbortController(); activeAgent = controller;
-    let directory;
-    try {
-      directory = await mkdtemp(join(tmpdir(),'edgeever-mind-agent-'));
-      await runPersonalAgent({store,mapId:input.id,revision:input.revision,prompt:input.prompt,config,signal:controller.signal,workingDirectory:directory,onEvent:event => { if (!window.isDestroyed()) window.webContents.send('mind:agent-event',event); }});
-      return true;
-    } catch { throw new Error('AI request failed or cancelled. No automatic map changes were made.'); }
-    finally { activeAgent = null; if (directory) await rm(directory,{recursive:true,force:true}); }
+  agentRequests = createPersonalAgentRequests({store,readConfig,
+    makeDirectory:() => mkdtemp(join(tmpdir(),'edgeever-mind-agent-')),
+    removeDirectory:directory => rm(directory,{recursive:true,force:true}),
+    emit:event => { if (!window.isDestroyed()) window.webContents.send('mind:agent-event',event); },
   });
+  handle('cancel',() => agentRequests.cancel());
+  handle('ask',input => agentRequests.ask(input));
   const webRoot = resolve(here,app.isPackaged ? '../../../../web' : '../../../web/dist');
   const packagedRoot = app.isPackaged ? join(process.resourcesPath,'web') : webRoot;
   protocol.handle('edgeever-mind',request => {
@@ -91,7 +82,7 @@ app.whenReady().then(async () => {
   handle('close-ready',async () => { await store.queue; closing = true; window.close(); return true; });
   window.on('close',event => {
     if (closing) return;
-    event.preventDefault(); activeAgent?.abort();
+    event.preventDefault(); agentRequests?.cancel();
     window.webContents.send('mind:before-close');
   });
   window.setMenu(null);
@@ -101,5 +92,5 @@ app.whenReady().then(async () => {
   if (!app.isPackaged && process.env.EDGEEVER_MIND_DEV_URL) await window.loadURL(process.env.EDGEEVER_MIND_DEV_URL);
   else await window.loadURL('edgeever-mind://app/personal.html');
 }).catch(async error => { await dialog.showMessageBox({type:'error',message:'EdgeEver Mind could not start',detail:error.message}); app.quit(); });
-app.on('window-all-closed',() => { activeAgent?.abort(); app.quit(); });
+app.on('window-all-closed',() => { agentRequests?.cancel(); app.quit(); });
 }
