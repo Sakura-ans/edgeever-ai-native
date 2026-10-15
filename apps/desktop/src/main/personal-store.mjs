@@ -2,8 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, open, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
+// Kept in sync with the shared IR catalog by the personal-store tests.
+export const PERSONAL_THEMES = ['plain', 'brand', 'ocean', 'ink', 'classic', 'sky', 'sunset', 'violet', 'rose', 'sand', 'slate', 'aurora', 'mono', 'sun', 'wa', 'island', 'mint', 'cosmos', 'tea', 'naive', 'macaron', 'paper', 'dune', 'prism', 'sunrise', 'marine', 'blossom', 'parchment', 'studio'];
+export const PERSONAL_STRUCTURES = ['map', 'line', 'capsule', 'box', 'circle', 'ellipse', 'hexagon', 'logic', 'tree', 'brace', 'org', 'timeline', 'fishbone', 'rect', 'diamond', 'cloud'];
 export function validateDocument(value) {
   if (!value || value.schemaVersion !== 1 || value.kind !== 'mind-map' || !Array.isArray(value.nodes) || !Array.isArray(value.edges) || value.nodes.length < 1 || value.nodes.length > 2000 || value.edges.length !== value.nodes.length - 1) throw new Error('Invalid mind map');
+  for (const [key, allowed] of [["theme", PERSONAL_THEMES], ["structure", PERSONAL_STRUCTURES]]) {
+    if (value[key] !== undefined && !allowed.includes(value[key])) throw new Error(`Invalid ${key}`);
+  }
   const ids = new Set();
   for (const n of value.nodes) {
     if (!n || typeof n.id !== 'string' || !n.id || n.id.length > 128 || ids.has(n.id) || typeof n.label !== 'string' || n.label.length > 2000 || n.shape !== 'topic' || !['x', 'y', 'width', 'height'].every(k => Number.isFinite(n[k])) || n.width <= 0 || n.height <= 0) throw new Error('Invalid node');
@@ -26,7 +32,7 @@ export function validateDocument(value) {
     edgeIds.add(e.id); targets.add(e.target);
   }
   // Only persist the IR fields; reject oversized envelopes before parsing at IPC/import boundaries.
-  return { schemaVersion: 1, kind: 'mind-map', nodes: value.nodes.map(({id,label,x,y,width,height,shape,parentId}) => ({id,label,x,y,width,height,shape,...(parentId === undefined ? {} : {parentId})})), edges: value.edges.map(({id,source,target}) => ({id,source,target})) };
+  return { schemaVersion: 1, kind: 'mind-map', ...(value.theme === undefined ? {} : {theme:value.theme}), ...(value.structure === undefined ? {} : {structure:value.structure}), nodes: value.nodes.map(({id,label,x,y,width,height,shape,parentId}) => ({id,label,x,y,width,height,shape,...(parentId === undefined ? {} : {parentId})})), edges: value.edges.map(({id,source,target}) => ({id,source,target})) };
 }
 const title = value => {
   if (typeof value !== 'string' || !value.trim() || value.length > 200) throw new Error('Invalid title');
@@ -109,7 +115,7 @@ export class PersonalStore {
   propose(id, revision, document, summary) {
     const current = this.map(this.state,id,revision);
     if (this.proposals.size >= 20) throw new Error('Too many pending proposals');
-    const proposal = {id:randomUUID(),mapId:id,revision,document:validateDocument(document),summary:String(summary).slice(0,2000)};
+    const proposal = {id:randomUUID(),mapId:id,revision,document:validateDocument({...document,theme:current.document.theme,structure:current.document.structure}),summary:String(summary).slice(0,2000)};
     if (JSON.stringify(proposal.document) === JSON.stringify(current.document)) throw new Error('没有实际变更，无需提交提案');
     this.proposals.set(proposal.id,clone(proposal));
     return clone(proposal);

@@ -148,3 +148,37 @@ those screenshots in the small Actions evidence artifact. The current unit suite
 adds readable-diff, size/depth/name limits, cyclic moves, corrupt/unsupported
 imports, no-op rejection, restart rollback, and timeout checks; it does not claim
 exhaustive adversarial or large-map performance coverage.
+
+## Shells and persistent diagram styles
+
+The top appearance button switches between warm paper and dark studio. Shell and
+left-panel visibility preferences are stored locally, independently of map data.
+The right panel can show properties, styles, or AI, and can be hidden. Windows
+can be narrowed to 640 pixels. All typography uses local system fonts.
+
+The style library keeps all original 11 color presets and 13 structures, adding
+`parchment` and `studio` colors. Historical IDs and aliases remain unchanged
+(in particular, legacy `paper` still maps to `brand`). Theme cards render miniature
+X6 maps; structure thumbnails are shared with the original editor. Root, primary
+and leaf visuals and all seven layout families use the shared diagram modules.
+Color previews are temporary until applied, and cancel/closing the panel writes
+nothing. Changing a structure asks before rearranging and records a single undo
+step. Appearance and color changes preserve authored coordinates.
+
+The JSON validator now retains and validates theme/structure in documents and
+history. Old documents with no style remain valid. Backup export/import, previous
+state recovery, restart, undo/redo and AI approval preserve these fields. AI
+proposals always inherit the current document's style, even if the mock/provider
+attempts to replace it. Rollback is by reverting the feature commit; export styled
+workspaces first because older app versions discard style metadata on save.
+
+`node scripts/verify-personal-styles.mjs` exercises the renderer at 2x DPI using
+the real store behind a mock bridge. The same behavioral suite runs inside the
+installed Windows app, including all presets, layout undo, preview cancellation,
+appearance restart, sidebar collapse, keyboard and narrow viewport checks. The
+Windows workflow additionally installs the pinned previous successful NSIS build
+(run 38723757542, commit 3fc3c244), seeds a real profile, installs this version to
+the same path, and verifies data/history continuity. The separate fresh-profile
+acceptance still runs with outbound firewall rules in place. Each run's artifacts
+are the authority on whether those checks passed; adding a test is not proof it
+ran. No real provider requests are part of these checks.

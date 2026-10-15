@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 
 const source = readFileSync(new URL("./DiagramEditorPane.tsx", import.meta.url), "utf8");
 const toolbarSource = readFileSync(new URL("./DiagramToolbar.tsx", import.meta.url), "utf8");
+const thumbnailSource = readFileSync(new URL('./DiagramThumbnails.tsx', import.meta.url), 'utf8');
 const topRowLeadingSource = readFileSync(new URL("./MemoEditorTopRowLeading.tsx", import.meta.url), "utf8");
 const globalStyles = readFileSync(new URL("../styles/globals.css", import.meta.url), "utf8");
 
@@ -179,9 +180,9 @@ describe("diagram editor canvas surface", () => {
     expect(toolbarSource).toContain('t("diagram.structure")');
     expect(toolbarSource).toContain("diagram.structureGroupMap");
     expect(toolbarSource).toContain("structureGroupLabelKey");
-    expect(toolbarSource).toContain('structure === "org"');
-    expect(toolbarSource).toContain('structure === "timeline"');
-    expect(toolbarSource).toContain('structure === "fishbone"');
+    expect(thumbnailSource).toContain('structure === "org"');
+    expect(thumbnailSource).toContain('structure === "timeline"');
+    expect(thumbnailSource).toContain('structure === "fishbone"');
     expect(toolbarSource).not.toContain("diagram.themeGroupVivid");
     expect(toolbarSource).toContain('<TooltipContent>{t("diagram.theme")}</TooltipContent>');
     expect(toolbarSource).not.toContain('value="ocean"');

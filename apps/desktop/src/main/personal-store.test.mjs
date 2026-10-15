@@ -68,3 +68,33 @@ test('approved subtree removal and undo survive restart; newer edits invalidate 
  const restarted=new PersonalStore(dir);await restarted.init();await restarted.command({type:'undo',id:m.id,revision:2});const again=new PersonalStore(dir);await again.init();expect(again.snapshot().maps[0].document).toEqual(validateDocument(doc));
  m=again.snapshot().maps[0];const stale=again.propose(m.id,m.revision,changed(m),'stale');await again.command({type:'save',id:m.id,revision:m.revision,document:{...m.document,nodes:m.document.nodes.map(n=>({...n,label:'Local edit'}))}});const preserved=await readFile(join(dir,'workspace.json'),'utf8');await expect(again.approve(stale.id)).rejects.toThrow('Revision conflict');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(preserved);
 }));
+
+import {DIAGRAM_THEMES,DIAGRAM_STRUCTURES} from '../../../../packages/shared/src/diagram.ts';
+import {PERSONAL_THEMES,PERSONAL_STRUCTURES} from './personal-store.mjs';
+test('native allowlists match every shared current and historical preset ID',()=>{
+ expect(PERSONAL_THEMES).toEqual([...DIAGRAM_THEMES]);expect(PERSONAL_STRUCTURES).toEqual([...DIAGRAM_STRUCTURES]);
+});
+test('every historical preset survives save, disk restart, previous backup, import and undo/redo',async()=>fixture(async(s,dir)=>{
+ for(let i=0;i<Math.max(DIAGRAM_THEMES.length,DIAGRAM_STRUCTURES.length);i++){
+  const m=s.snapshot().maps[0],document={...m.document,theme:DIAGRAM_THEMES[i%DIAGRAM_THEMES.length],structure:DIAGRAM_STRUCTURES[i%DIAGRAM_STRUCTURES.length]};
+  await s.command({type:'save',id:m.id,revision:m.revision,document});
+  const restart=new PersonalStore(dir);await restart.init();expect(restart.snapshot().maps[0].document).toEqual(document);
+  const previous=JSON.parse(await readFile(join(dir,'workspace.previous.json'),'utf8'));expect(previous.maps[0].document).toEqual(m.document);
+  await s.command({type:'undo',id:m.id,revision:m.revision+1});expect(s.snapshot().maps[0].document).toEqual(m.document);
+  await s.command({type:'redo',id:m.id,revision:m.revision+2});expect(s.snapshot().maps[0].document).toEqual(document);
+ }
+ const backup=s.snapshot();await s.command({type:'import',backup});expect(s.snapshot().maps[1].document).toEqual(backup.maps[0].document);expect(s.snapshot().maps[1].undo).toEqual(backup.maps[0].undo);
+}));
+test('AI proposals cannot change or remove authored style, including unstyled legacy maps',async()=>fixture(async(s)=>{
+ for(const style of [{},{theme:'paper',structure:'cloud'},{theme:'parchment',structure:'org'}]){
+  let m=s.snapshot().maps[0];await s.command({type:'save',id:m.id,revision:m.revision,document:{...m.document,theme:undefined,structure:undefined,...style}});m=s.snapshot().maps[0];
+  const p=s.propose(m.id,m.revision,{...m.document,nodes:m.document.nodes.map(n=>({...n,label:n.label+' mock'})),theme:'studio',structure:'fishbone'},'Mock only');
+  expect(p.document.theme).toBe(style.theme);expect(p.document.structure).toBe(style.structure);await s.approve(p.id);
+  expect(s.snapshot().maps[0].document.theme).toBe(style.theme);expect(s.snapshot().maps[0].document.structure).toBe(style.structure);
+ }
+}));
+test('invalid preset imports fail atomically; missing legacy style remains missing',async()=>fixture(async(s,dir)=>{
+ const m=s.snapshot().maps[0];expect(validateDocument(m.document).theme).toBeUndefined();const before=await readFile(join(dir,'workspace.json'),'utf8');
+ for(const style of [{theme:'invalid'},{structure:'invalid'}])await expect(s.command({type:'save',id:m.id,revision:m.revision,document:{...m.document,...style}})).rejects.toThrow('Invalid');
+ expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
+}));

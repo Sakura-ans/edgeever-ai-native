@@ -1,3 +1,4 @@
+import {verifyStyles} from './personal-style-acceptance.mjs';
 import {_electron as electron,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
 import {mkdtemp,mkdir,rm,readFile,writeFile,copyFile} from 'node:fs/promises';
@@ -18,7 +19,7 @@ async function launch(){
  application=await electron.launch({executablePath:executable,args:[`--user-data-dir=${join(profile,'EdgeEverMind')}`],env,timeout:60000});page=await application.firstWindow();
  page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>allowDialog ? dialog.accept() : dialog.dismiss());
  await application.evaluate(({session})=>session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_d,callback)=>callback({cancel:true})));
- await expect(page.getByRole('button',{name:'＋ 新建导图'})).toBeVisible();
+ await expect(page.getByRole('button',{name:'☷ 导图库'})).toBeVisible();
  assert.equal(await application.evaluate(({app})=>app.getPath('userData')),join(profile,'EdgeEverMind'));
 }
 async function create(title){await page.getByRole('button',{name:'＋ 新建导图'}).click();await page.getByLabel('新导图名称').fill(title);await page.getByRole('button',{name:'创建',exact:true}).click();await page.getByLabel('主题内容').waitFor();await saved();}
@@ -97,6 +98,13 @@ try {
   const original=(await snapshot()).maps.at(-1);assert.equal(original.document.nodes.length,28);await page.getByLabel('主题内容').fill('项目导图 · 可编辑验证');await saved();await page.getByRole('button',{name:'撤销',exact:true}).click();await saved();assert.deepEqual((await snapshot()).maps.at(-1).document,original.document);await application.close();application=null;await launch();await page.getByRole('button',{name:'EdgeEver Mind 项目导图（程序生成）',exact:true}).click();await expect(page.locator('.outline')).toHaveCount(28);await page.getByRole('button',{name:'适应画布'}).click();await shot('19-project-map-restarted');
  });
  await check('default DeepSeek model is non-secret and configurable',async()=>{await page.getByRole('button',{name:'DeepSeek 设置'}).click();await expect(page.getByLabel('模型标识')).toHaveValue('deepseek-flash');await expect(page.locator('input[type=password]')).toHaveValue('');await shot('20-deepseek-default-no-key');await page.getByRole('button',{name:'关闭',exact:true}).click();});
+ page=await verifyStyles({page,snapshot,shot,check,restart:async()=>{await application.close();application=null;await launch();return page;},emitProposal:async m=>{
+  await bindLiveStore();await application.evaluate(({BrowserWindow},m)=>{const store=globalThis.__qaStore;const document={...m.document,theme:'prism',structure:'fishbone',nodes:m.document.nodes.map((n,i)=>i===0?{...n,label:n.label+'（mock 修改）'}:n)};const p=store.propose(m.id,m.revision,document,'Mock 合成提案：重命名中心主题，保留配色和结构');BrowserWindow.getAllWindows()[0].webContents.send('mind:agent-event',{type:'proposal',proposal:p});},m);
+ }});
+ await check('styled native export/import preserves style, geometry and undo history',async()=>{
+  const before=(await snapshot()).maps;const backup=join(profile,'styled-backup.json');await picker('save',backup);await page.getByRole('button',{name:'导出完整备份'}).click();await saved();const exported=JSON.parse(await readFile(backup,'utf8'));assert.deepEqual(exported.maps,before);
+  await picker('open',backup);await page.getByRole('button',{name:'导入备份为副本'}).click();await saved();const imported=(await snapshot()).maps.slice(before.length);assert.equal(imported.length,before.length);for(let i=0;i<before.length;i++){assert.deepEqual(imported[i].document,before[i].document);assert.deepEqual(imported[i].undo,before[i].undo);}
+ });
  await check('no renderer exceptions' ,async()=>assert.deepEqual(errors,[]));
  await application.close();application=null;
  if(process.platform==='win32') await check('corrupt on-disk workspace startup fails closed with native error dialog',async()=>{

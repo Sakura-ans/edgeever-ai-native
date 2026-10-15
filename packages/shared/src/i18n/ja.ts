@@ -762,6 +762,8 @@ export const ja = {
     themeMarine: "潮",
     themeBlossom: "花",
     themeMint: "ミント",
+    themeParchment: "羊皮紙",
+    themeStudio: "スタジオ",
     themeMacaron: "マカロン",
     themeInk: "墨",
     themePaper: "紙",

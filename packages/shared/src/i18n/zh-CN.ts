@@ -773,6 +773,8 @@ export const zhCN = {
     themeMarine: "海潮",
     themeBlossom: "暮樱",
     themeMint: "泠泉",
+    themeParchment: "纸间",
+    themeStudio: "工作室",
     themeMacaron: "柔糖",
     themeInk: "墨色",
     themePaper: "纸色",

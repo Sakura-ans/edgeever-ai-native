@@ -19,7 +19,7 @@ describe("diagram document", () => {
       "logic", "tree", "brace", "org", "timeline", "fishbone",
     ]);
     expect(DIAGRAM_SELECTABLE_THEMES[0]).toBe("plain");
-    expect(DIAGRAM_SELECTABLE_THEMES).toHaveLength(11);
+    expect(DIAGRAM_SELECTABLE_THEMES).toHaveLength(13);
     const document = createDefaultDiagramDocument("mind-map");
     document.theme = "mint";
     document.structure = "fishbone";

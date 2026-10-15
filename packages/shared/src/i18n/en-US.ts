@@ -773,6 +773,8 @@ export const enUS = {
     themeMarine: "Marine",
     themeBlossom: "Blossom",
     themeMint: "Mint",
+    themeParchment: "Parchment",
+    themeStudio: "Studio",
     themeMacaron: "Macaron",
     themeInk: "Ink",
     themePaper: "Paper",

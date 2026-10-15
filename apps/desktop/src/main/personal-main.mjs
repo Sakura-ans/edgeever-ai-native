@@ -78,7 +78,7 @@ app.whenReady().then(async () => {
     if (url.host !== 'app' || localPath.startsWith('..') || isAbsolute(localPath)) return new Response('Forbidden',{status:403});
     return net.fetch(pathToFileURL(file).toString());
   });
-  window = new BrowserWindow({width:1400,height:900,minWidth:1000,minHeight:650,title:'EdgeEver Mind',webPreferences:{preload:join(here,'../preload/personal.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window = new BrowserWindow({width:1400,height:900,minWidth:640,minHeight:650,title:'EdgeEver Mind',webPreferences:{preload:join(here,'../preload/personal.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   let closing = false;
   handle('close-ready',async () => { await store.queue; closing = true; window.close(); return true; });
   window.on('close',event => {

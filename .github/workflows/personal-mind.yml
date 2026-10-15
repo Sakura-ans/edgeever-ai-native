@@ -46,7 +46,7 @@ jobs:
   windows:
     if: github.repository == 'Sakura-ans/edgeever-ai-native'
     runs-on: windows-latest
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
       - uses: oven-sh/setup-bun@v2
@@ -67,6 +67,11 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
       - name: Smoke test packaged desktop
         run: node scripts/verify-personal-package.mjs release/mind/win-unpacked/EdgeEverMind.exe
+      - name: Download pinned previous installer for real upgrade acceptance
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh run download 38723757542 --repo Sakura-ans/edgeever-ai-native --name EdgeEver-Mind-Windows-preview --dir artifacts/baseline-installer
       - name: Install NSIS and block network before fresh-profile launch
         shell: pwsh
         run: |
@@ -75,10 +80,20 @@ jobs:
           New-NetFirewallRule -DisplayName 'EdgeEverMind-QA-offline-app' -Direction Outbound -Program $program -Action Block | Out-Null
           $sdk = Join-Path $installPath 'resources\app.asar.unpacked\node_modules\@anthropic-ai\claude-agent-sdk-win32-x64\claude.exe'
           New-NetFirewallRule -DisplayName 'EdgeEverMind-QA-offline-sdk' -Direction Outbound -Program $sdk -Action Block | Out-Null
+          $baseline = Get-ChildItem artifacts/baseline-installer -Filter '*.exe' | Select-Object -First 1
+          $old = Start-Process -FilePath $baseline.FullName -ArgumentList @('/S', "/D=$installPath") -Wait -PassThru
+          if ($old.ExitCode -ne 0 -or !(Test-Path $program)) { throw 'Baseline NSIS installation failed' }
+          Get-Process -Name EdgeEverMind -ErrorAction SilentlyContinue | Stop-Process -Force
+          $upgradeProfile = Join-Path $env:RUNNER_TEMP 'mind-cross-version-profile'
+          node scripts/verify-personal-upgrade.mjs seed "$program" "$upgradeProfile" artifacts/legacy-state.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item artifacts/baseline-installer -Recurse -Force
           $installer = Get-ChildItem release/mind -Filter '*.exe' | Select-Object -First 1
           $result = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installPath") -Wait -PassThru
           if ($result.ExitCode -ne 0 -or !(Test-Path $program)) { throw "NSIS installation failed: $($result.ExitCode)" }
           Get-Process -Name EdgeEverMind -ErrorAction SilentlyContinue | Stop-Process -Force
+          node scripts/verify-personal-upgrade.mjs verify "$program" "$upgradeProfile" artifacts/legacy-state.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           @{installer=$installer.Name;exitCode=$result.ExitCode;installedExecutable=$program;firewallRules=@(Get-NetFirewallRule -DisplayName 'EdgeEverMind-QA-offline-*' | Select-Object DisplayName,Enabled,Direction,Action)} | ConvertTo-Json -Depth 5 | Set-Content artifacts/installation.json
           "MIND_INSTALLED_EXECUTABLE=$program" >> $env:GITHUB_ENV
       - name: Installed Windows acceptance and screenshots

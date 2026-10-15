@@ -762,6 +762,8 @@ export const pl = {
     themeMarine: "Morski",
     themeBlossom: "Kwiat",
     themeMint: "Mięta",
+    themeParchment: "Pergamin",
+    themeStudio: "Studio",
     themeMacaron: "Makaronik",
     themeInk: "Tusz",
     themePaper: "Papier",
