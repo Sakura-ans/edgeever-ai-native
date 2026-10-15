@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, open, rename } from 'node:fs/promises';
+import { mkdir, readFile, open, rename, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 
 export function validateDocument(value) {
@@ -56,10 +56,14 @@ export class PersonalStore {
   }
   snapshot() { return clone(this.state); }
   async persist(state, filename = 'workspace.json') {
+    const serialized = JSON.stringify(state);
+    if (serialized.length > 8_000_000) throw new Error('Workspace exceeds the 8 MB backup limit');
     const temp = join(this.directory, `${filename}.${randomUUID()}.tmp`);
-    const file = await open(temp, 'wx', 0o600);
-    try { const serialized = JSON.stringify(state); if (serialized.length > 8_000_000) throw new Error('Workspace exceeds the 8 MB backup limit'); await file.writeFile(serialized); await file.sync(); } finally { await file.close(); }
-    await rename(temp, join(this.directory, filename));
+    try {
+      const file = await open(temp, 'wx', 0o600);
+      try { await file.writeFile(serialized); await file.sync(); } finally { await file.close(); }
+      await rename(temp, join(this.directory, filename));
+    } finally { await rm(temp, {force:true}).catch(() => {}); }
   }
   mutate(fn) {
     const operation = this.queue.then(async () => {
