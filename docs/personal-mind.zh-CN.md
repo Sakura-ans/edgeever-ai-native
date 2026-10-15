@@ -49,7 +49,7 @@ Windows 数据位于 `%APPDATA%/EdgeEverMind/maps/workspace.json`。不读取或
 
 ## AI 权限边界
 
-DeepSeek 端点为 `https://api.deepseek.com/anthropic`，模型标识由用户填写。
+DeepSeek 端点为 `https://api.deepseek.com/anthropic`，默认模型标识为 `deepseek-flash`，可编辑；该默认值不代表真实调用已验证。
 密钥仅由 Electron 主进程通过操作系统 `safeStorage` 加密保存，拒绝明文后备。
 渲染进程只能查询“是否已保存”；留空保留原密钥，也可单独删除。启动不请求模型。
 

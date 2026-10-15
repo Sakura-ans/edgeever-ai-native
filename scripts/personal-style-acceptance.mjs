@@ -22,7 +22,7 @@ export async function verifyStyles({page,snapshot,restart,shot,check,emitProposa
   }
  });
  await check('styled AI mock approval and undo retain original theme and structure',async()=>{
-  const m=await current();await emitProposal(m);await expect(page.getByRole('dialog',{name:'AI 修改预览'})).toBeVisible();await shot('24-styled-ai-preview-mock');await page.getByRole('button',{name:'确认应用 · 可撤销'}).click();await saved();const after=await current();assert.equal(after.document.theme,m.document.theme);assert.equal(after.document.structure,m.document.structure);
+  await page.locator('[data-structure-id=org]').click();await saved();const m=await current();await emitProposal(m);await expect(page.getByRole('dialog',{name:'AI 修改预览'})).toBeVisible();await shot('24-styled-ai-preview-mock');await page.getByRole('button',{name:'确认应用 · 可撤销'}).click();await saved();const after=await current();assert.equal(after.document.theme,m.document.theme);assert.equal(after.document.structure,m.document.structure);
   await page.getByRole('button',{name:'撤销',exact:true}).click();await saved();assert.deepEqual((await current()).document,m.document);
  });
  await check('same map in both shells preserves document, coordinates and style; restart persists shell',async()=>{

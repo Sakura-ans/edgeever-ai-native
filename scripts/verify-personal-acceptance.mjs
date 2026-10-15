@@ -1,3 +1,4 @@
+import {compactReport} from './personal-compact-report.mjs';
 import {verifyStyles} from './personal-style-acceptance.mjs';
 import {_electron as electron,expect} from '@playwright/test';
 import assert from 'node:assert/strict';
@@ -13,10 +14,10 @@ const report={baseline:'a9433f1460bdecc5e89d95ee093fceab91808ebc',commit:process
 let application,page;let allowDialog=true;const errors=[];
 const env={...process.env,APPDATA:join(profile,'environment-decoy'),XDG_CONFIG_HOME:join(profile,'environment-decoy')};
 const saved=async()=>{await expect(page.getByRole('status')).toHaveText('已保存到本机');};
-async function shot(name){const filename=`${name}.png`;await page.screenshot({path:join(output,filename)});report.screenshots.push({file:filename,source:`${process.platform} ${report.source}`,synthetic:true});}
+async function shot(name){const filename=`${name}.png`;await page.screenshot({animations:'disabled',path:join(output,filename)});report.screenshots.push({file:filename,source:`${process.platform} ${report.source}`,synthetic:true});}
 async function check(name,fn){const start=Date.now();try{await fn();report.cases.push({name,status:'PASS',milliseconds:Date.now()-start});console.log(`PASS ${name}`);}catch(error){console.error('FAIL',name,String(error));report.cases.push({name,status:'FAIL',error:String(error),milliseconds:Date.now()-start});if(page && !page.isClosed()) await shot('failure').catch(()=>{});throw error;}}
-async function launch(){
- application=await electron.launch({executablePath:executable,args:[`--user-data-dir=${join(profile,'EdgeEverMind')}`],env,timeout:60000});page=await application.firstWindow();
+async function launch(scale=1){
+ application=await electron.launch({executablePath:executable,args:[`--user-data-dir=${join(profile,'EdgeEverMind')}`,`--force-device-scale-factor=${scale}`],env,timeout:60000});page=await application.firstWindow();
  page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>allowDialog ? dialog.accept() : dialog.dismiss());
  await application.evaluate(({session})=>session.defaultSession.webRequest.onBeforeRequest({urls:['http://*/*','https://*/*']},(_d,callback)=>callback({cancel:true})));
  await expect(page.getByRole('button',{name:'☷ 导图库'})).toBeVisible();
@@ -101,6 +102,10 @@ try {
  page=await verifyStyles({page,snapshot,shot,check,restart:async()=>{await application.close();application=null;await launch();return page;},emitProposal:async m=>{
   await bindLiveStore();await application.evaluate(({BrowserWindow},m)=>{const store=globalThis.__qaStore;const document={...m.document,theme:'prism',structure:'fishbone',nodes:m.document.nodes.map((n,i)=>i===0?{...n,label:n.label+'（mock 修改）'}:n)};const p=store.propose(m.id,m.revision,document,'Mock 合成提案：重命名中心主题，保留配色和结构');BrowserWindow.getAllWindows()[0].webContents.send('mind:agent-event',{type:'proposal',proposal:p});},m);
  }});
+ await check('native 2x DPI restart preserves workspace and renders Chinese map',async()=>{
+  const before=await snapshot();await application.close();application=null;await launch(2);assert.equal(await page.evaluate(()=>window.devicePixelRatio),2);assert.deepEqual(await snapshot(),before);
+  await page.getByRole('button',{name:'EdgeEver Mind 项目导图（程序生成）',exact:true}).click();await expect(page.locator('.canvas .x6-node:visible')).toHaveCount(28);await page.getByRole('button',{name:'适应画布'}).click();await shot('26-native-high-dpi');
+ });
  await check('styled native export/import preserves style, geometry and undo history',async()=>{
   const before=(await snapshot()).maps;const backup=join(profile,'styled-backup.json');await picker('save',backup);await page.getByRole('button',{name:'导出完整备份'}).click();await saved();const exported=JSON.parse(await readFile(backup,'utf8'));assert.deepEqual(exported.maps,before);
   await picker('open',backup);await page.getByRole('button',{name:'导入备份为副本'}).click();await saved();const imported=(await snapshot()).maps.slice(before.length);assert.equal(imported.length,before.length);for(let i=0;i<before.length;i++){assert.deepEqual(imported[i].document,before[i].document);assert.deepEqual(imported[i].undo,before[i].undo);}
@@ -126,5 +131,6 @@ finally {
  const escape=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const html=`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><title>EdgeEver Mind 测试结果</title><style>body{font:16px system-ui;max-width:1100px;margin:40px auto;background:#f5f7f5;color:#18251c}section{background:white;border:1px solid #d6ddd7;padding:24px;margin:24px 0;border-radius:12px}img{max-width:100%;border:1px solid #ccd4ce}small{color:#58685c}li{margin:10px 0}code{overflow-wrap:anywhere}</style><h1>EdgeEver Mind 实际运行测试</h1><p>${report.passed} 通过 / ${report.failed} 失败 · ${escape(report.platform)} · ${escape(report.source)}</p><p>提交 <code>${escape(report.commit)}</code></p><p>${escape(report.firstLaunchNetworkBlock)}</p><p>全部为合成导图；未调用真实 DeepSeek，未使用真实密钥。AI 提案经调试器注入，确认/拒绝走真实应用 IPC 与存储。图片是实际截图，没有重绘或拼接。</p><section><h2>逐项结果</h2><ul>${report.cases.map(c=>`<li><b>${c.status}</b> ${escape(c.name)}${c.error?`<pre>${escape(c.error)}</pre>`:''}</li>`).join('')}</ul></section>${report.screenshots.map(s=>`<section><h2>${escape(s.file)}</h2><small>${escape(s.source)} / synthetic test data</small><p><img src="${escape(s.file)}" alt="${escape(s.file)}"></p></section>`).join('')}<section><h2>验证边界</h2><ul>${report.limitations.map(x=>`<li>${escape(x)}</li>`).join('')}</ul></section></html>`;
  await writeFile(join(output,'index.html'),html);
+ await compactReport(output,report);
  console.log(JSON.stringify({passed:report.passed,failed:report.failed,output}));
 }

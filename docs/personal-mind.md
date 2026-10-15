@@ -60,8 +60,8 @@ file, then restore an exported backup or the previous state as `workspace.json`.
 
 ## AI authority boundary
 
-DeepSeek uses `https://api.deepseek.com/anthropic`. The user supplies the model ID;
-none is assumed. Keys are stored only by Electron main using OS `safeStorage`.
+DeepSeek uses `https://api.deepseek.com/anthropic`. The editable default model ID is `deepseek-flash`;
+this default does not imply a verified provider request. Keys are stored only by Electron main using OS `safeStorage`.
 Plaintext/basic-text fallback is rejected. The renderer can see only whether a
 key exists; a blank key preserves the existing one and a separate action removes
 it. No startup model request is made.
