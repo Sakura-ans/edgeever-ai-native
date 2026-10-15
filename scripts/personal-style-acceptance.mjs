@@ -40,5 +40,9 @@ export async function verifyStyles({page,snapshot,restart,shot,check,emitProposa
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await shot('25-narrow-keyboard');
   await page.setViewportSize({width:1440,height:950});await page.getByRole('button',{name:'☷ 导图库'}).click();await page.getByRole('button',{name:'☰ 大纲'}).click();
  });
+ await check('narrow resizing leaves canvas controls unobstructed',async()=>{
+  await page.setViewportSize({width:680,height:820});await expect(page.locator('.assistant')).toHaveCount(0);await page.getByRole('button',{name:'适应画布'}).click();
+  await page.setViewportSize({width:1440,height:950});await page.getByRole('button',{name:'✧ AI 助手',exact:true}).click();await expect(page.locator('.assistant')).toBeVisible();await page.setViewportSize({width:680,height:820});await expect(page.locator('.assistant')).toHaveCount(0);await page.getByRole('button',{name:'适应画布'}).click();await page.setViewportSize({width:1440,height:950});
+ });
  return page;
 }

@@ -26,7 +26,11 @@ function App() {
   const [shell,setShell]=useState(()=>localStorage.getItem('mind-shell')==='studio'?'studio':'paper');
   const [libraryOpen,setLibraryOpen]=useState(()=>localStorage.getItem('mind-library')!=='closed');
   const [outlineOpen,setOutlineOpen]=useState(()=>localStorage.getItem('mind-outline')!=='closed');
-  const [panel,setPanel]=useState<'ai'|'themes'|'properties'|null>('ai');
+  const [panel,setPanel]=useState<'ai'|'themes'|'properties'|null>(()=>window.innerWidth<=850?null:'ai');
+  useEffect(()=>{
+    const adapt=()=>{if(window.innerWidth<=850){setPanel(null);setPreviewTheme(null);}};
+    window.addEventListener('resize',adapt);return()=>window.removeEventListener('resize',adapt);
+  },[]);
   const [previewTheme,setPreviewTheme]=useState<DiagramTheme|null>(null);
   useEffect(()=>{localStorage.setItem('mind-shell',shell);document.documentElement.dataset.shell=shell;},[shell]);
   useEffect(()=>{localStorage.setItem('mind-library',libraryOpen?'open':'closed');},[libraryOpen]);
