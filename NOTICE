@@ -1,0 +1,16 @@
+EdgeEver Mind is derived from EdgeEver (https://github.com/tianma-if/edgeever).
+Original author and contributors retain their copyrights. The retained code is
+licensed under AGPL-3.0; see LICENSE and the Git history for original authorship.
+Personal mind-map changes: Sakura-ans/edgeever-ai-native contributors.
+
+Noto Sans SC Variable: Google Inc., SIL Open Font License 1.1.
+Pinned distribution: @fontsource-variable/noto-sans-sc 5.3.0.
+All 101 upstream unicode partitions are bundled unchanged, offline. No
+application-text subset is generated. System CJK fonts remain fallback for
+characters outside the upstream font's repertoire; no single font is claimed
+to cover every Unicode ideograph. Source: https://fontsource.org/fonts/noto-sans-sc
+
+Electron / Chromium, React, AntV X6, Dagre, js-base64, Zod and Claude Agent SDK
+retain their respective licenses. Distribution notices are copied to
+resources/web/licenses; native dependencies retain package license files.
+The Claude Agent SDK and its official native executable are retained intact.

@@ -1,5 +1,0 @@
-#include "Version.xcconfig"
-
-DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
-SWIFT_OPTIMIZATION_LEVEL = -O
-SWIFT_COMPILATION_MODE = wholemodule

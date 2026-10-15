@@ -1,84 +1,32 @@
-# 为 EdgeEver 贡献代码
+# EdgeEver Mind
 
-简体中文 | [English](CONTRIBUTING.md)
+离线、免登录的个人导图工作台，基于 EdgeEver 的共享导图引擎。数据保存在本机 JSON 工作区。温暖纸感与深色工作室独立于导图样式；保留原 11 配色、13 结构及历史 ID，并新增 parchment/studio 配色。
 
-感谢您为 EdgeEver 贡献代码。用于 Cloudflare 部署的 Fork 也可以提交代码贡献，但部署与开发必须使用不同的分支。
+## 开发与验证
 
-## 将部署分支与贡献分支分开
-
-如果您的 Fork 用于部署 EdgeEver：
-
-- 将 Fork 的 `main` 视为仅用于部署的分支，并交由 **Update deployed EdgeEver** 管理。
-- 不要直接在这个 `main` 分支上开发功能。
-- 日常开发和部署更新时，不要通过 GitHub **Sync fork** 更新部署用的 `main`。
-- 每项代码贡献都应从官方仓库最新的 `upstream/main` 创建独立分支。
-
-部署更新工作流只会更新 Fork 的 `main`，不会修改您的贡献分支。
-
-## 创建贡献分支
-
-克隆您的 Fork，并将官方仓库添加为 `upstream`：
+使用 package.json 固定的 Bun 版本：
 
 ```sh
-git clone https://github.com/<您的账号>/edgeever.git
-cd edgeever
-git remote add upstream https://github.com/tianma-if/edgeever.git
-git fetch upstream
-```
-
-从官方最新的 `main` 创建新分支，不要从部署分支开始开发：
-
-```sh
-git switch -c feat/简短说明 upstream/main
-```
-
-完成修改并提交后，将贡献分支推送到您的 Fork：
-
-```sh
-git push -u origin feat/简短说明
-```
-
-然后创建以下 Pull Request：
-
-```text
-<您的账号>/edgeever:feat/简短说明
-    -> tianma-if/edgeever:main
-```
-
-提交这个 Pull Request 时，您的 Fork `main` 不需要与官方 `main` 保持一致。GitHub 使用的是贡献分支，而不是部署分支。
-
-## 为开发中的贡献同步上游代码
-
-官方仓库有新提交时，直接更新贡献分支，不要改动部署用的 `main`：
-
-```sh
-git fetch upstream
-git switch feat/简短说明
-git rebase upstream/main
-```
-
-如果该分支已经推送过，请安全地更新远端贡献分支：
-
-```sh
-git push --force-with-lease origin feat/简短说明
-```
-
-如有冲突，请在贡献分支中解决，不要通过同步部署用的 `main` 来处理。
-
-## 验证修改
-
-安装依赖并运行与改动相关的检查。核心验证命令包括：
-
-```sh
-bun install
+bun install --frozen-lockfile
 bun run test
 bun run typecheck
-bun run typecheck:mobile
 bun run build:web
+bun run dev:web
+bun run dev:desktop
 ```
 
-特定平台的改动可能还需要额外检查。
+Windows 安装包：`bun run build:desktop`。产物位于 `release/mind`。功能分支 CI 会真实安装旧 NSIS 包，再覆盖安装新版，另用全新用户目录验收离线启动、样式、导入导出、撤销重做与 mock AI。CI 不发布 Release、不部署。
 
-## 定制部署
+## 产品边界
 
-如果您希望将个人产品改动长期保留在部署用的 `main`，这属于定制部署，而不是普通的代码贡献流程。定制部署需要设置 `EDGE_EVER_PRESERVE_FORK_CHANGES=true`，并自行维护与上游的合并。使用独立分支贡献代码时不需要设置这个变量。
+保留 `apps/web` 个人工作台、`apps/desktop` 本地存储与 Claude Agent SDK、安全密钥存储，以及 `packages/shared` 导图模型和布局。账号同步、笔记/多媒体编辑器、服务端、网站、移动端和浏览器扩展已从此个人分支删除；完整历史仍在 Git 中。旧工作区格式兼容，切勿删除用户数据目录。
+
+AI 默认模型标识 `deepseek-flash`，仅在用户配置并主动请求时调用。测试仅使用 mock/合成凭据，不调用付费模型。预览以中文展示增删改移动，确认后写入；模型不能覆盖现有配色或结构。
+
+## 本地字体与许可
+
+固定 `@fontsource-variable/noto-sans-sc@5.3.0`，分发上游 index.css 的全部 101 个原始 WOFF2 分区，不按应用文本裁剪。构建复制到本地 fonts 目录，无在线字体/CDN。提供 100–900 字重和系统中文回退；字体自身字库以外的字符由系统回退。字体 OFL-1.1、项目 AGPL-3.0 及第三方声明随包保留，见 LICENSE、NOTICE。
+
+## 验收与体积
+
+`.github/workflows/personal-mind.yml` 生成 Windows 安装包、真实截图与 HTML 报告。`scripts/personal-size-audit.mjs` 对同配置旧/新 NSIS exe 和安装目录逐文件字节求和，报告字体成本与差值；ZIP 附件大小不能代替安装包大小。Windows CI 桌面验收不代表全部物理设备。

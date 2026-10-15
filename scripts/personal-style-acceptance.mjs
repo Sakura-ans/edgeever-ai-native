@@ -5,6 +5,12 @@ export async function verifyStyles({page,snapshot,restart,shot,check,emitProposa
  const saved=()=>expect(page.getByRole('status')).toHaveText('已保存到本机');
  const current=async()=>{const title=await page.getByLabel('导图名称').inputValue();return (await snapshot()).maps.find(m=>m.title===title);};
  const panel=async()=>{const b=page.getByRole('button',{name:'◈ 主题',exact:true});if(await b.getAttribute('aria-pressed')!=='true')await b.click();};
+ await check('local Chinese font is loaded; narrow drawers remain mutually exclusive',async()=>{
+  await page.evaluate(async()=>{await document.fonts.load('500 16px "Noto Sans SC Variable"','中文导图 ABC 0123456789');await document.fonts.ready;});
+  assert.equal(await page.evaluate(()=>document.fonts.check('500 16px "Noto Sans SC Variable"','中文导图')),true);
+  const urls=await page.evaluate(()=>performance.getEntriesByType('resource').filter(r=>r.name.endsWith('.woff2')).map(r=>r.name));assert.ok(urls.length>0);assert.ok(urls.every(url=>!/^https?:/.test(url)||url.startsWith('http://127.0.0.1:')));
+  await page.setViewportSize({width:680,height:820});await page.getByRole('button',{name:'◈ 主题',exact:true}).click();await expect(page.locator('.library')).toHaveCount(0);await page.getByRole('button',{name:'☷ 导图库'}).click();await expect(page.locator('.assistant')).toHaveCount(0);await page.getByRole('button',{name:'收起导图库',exact:true}).click();await expect(page.locator('.library')).toHaveCount(0);await page.setViewportSize({width:1440,height:950});await page.getByRole('button',{name:'☷ 导图库'}).click();
+ });
  await check('all 13 color presets are selectable and keep exact node geometry',async()=>{
   await panel();const before=(await current()).document.nodes;
   for(const id of ['plain','brand','cosmos','dune','slate','prism','sunrise','marine','blossom','mint','macaron','parchment','studio']){
@@ -35,7 +41,7 @@ export async function verifyStyles({page,snapshot,restart,shot,check,emitProposa
  await check('sidebar collapse persists; narrow window, full Chinese labels and keyboard undo',async()=>{
   await page.getByRole('button',{name:'☷ 导图库'}).click();await expect(page.locator('.library')).toHaveCount(0);await page.getByRole('button',{name:'☰ 大纲'}).click();await expect(page.locator('.outline-panel')).toHaveCount(0);
   page=await restart();await expect(page.locator('.library')).toHaveCount(0);await expect(page.locator('.outline-panel')).toHaveCount(0);
-  await page.getByRole('button',{name:'收起右侧面板'}).click();await page.setViewportSize({width:680,height:820});
+  await expect(page.locator('.assistant')).toHaveCount(0);await page.setViewportSize({width:680,height:820});
   const before=(await current()).document;await page.getByLabel('主题内容').fill('长中文主题：离线保存与可撤销编辑，认真记录每一个想法。'.repeat(5));await saved();await page.getByLabel('主题内容').press('Tab');await page.keyboard.press('Control+z');await saved();assert.deepEqual((await current()).document,before);
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await shot('25-narrow-keyboard');
   await page.setViewportSize({width:1440,height:950});await page.getByRole('button',{name:'☷ 导图库'}).click();await page.getByRole('button',{name:'☰ 大纲'}).click();

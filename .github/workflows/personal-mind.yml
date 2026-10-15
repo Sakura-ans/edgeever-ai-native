@@ -16,19 +16,6 @@ jobs:
         with:
           bun-version-file: package.json
       - run: bun install --frozen-lockfile
-      - name: Reproduce baseline 49 tests
-        shell: bash
-        run: |
-          mkdir -p artifacts
-          git fetch --depth=1 origin a9433f1460bdecc5e89d95ee093fceab91808ebc
-          git worktree add --detach "$RUNNER_TEMP/mind-baseline" a9433f1460bdecc5e89d95ee093fceab91808ebc
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$RUNNER_TEMP/mind-baseline/node_modules"
-          for workspace in apps/web apps/desktop packages/shared; do
-            ln -s "$GITHUB_WORKSPACE/$workspace/node_modules" "$RUNNER_TEMP/mind-baseline/$workspace/node_modules"
-          done
-          set -o pipefail
-          (cd "$RUNNER_TEMP/mind-baseline" && bun "$GITHUB_WORKSPACE/scripts/test-personal.mjs") 2>&1 | tee artifacts/baseline-49-tests.log
-          git worktree remove --force "$RUNNER_TEMP/mind-baseline"
       - name: Unit tests and evidence
         shell: bash
         run: |
@@ -36,7 +23,6 @@ jobs:
           set -o pipefail
           bun scripts/test-personal.mjs 2>&1 | tee artifacts/unit-tests.log
       - run: bun run typecheck
-      - run: bun run typecheck:mobile
       - run: bun run build:web
       - uses: actions/upload-artifact@v4
         if: always()
@@ -71,7 +57,7 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run download 38723757542 --repo Sakura-ans/edgeever-ai-native --name EdgeEver-Mind-Windows-preview --dir artifacts/baseline-installer
+        run: gh run download 38734669592 --repo Sakura-ans/edgeever-ai-native --name EdgeEver-Mind-Windows-preview --dir artifacts/baseline-installer
       - name: Install NSIS and block network before fresh-profile launch
         shell: pwsh
         run: |
@@ -87,6 +73,8 @@ jobs:
           $upgradeProfile = Join-Path $env:RUNNER_TEMP 'mind-cross-version-profile'
           node scripts/verify-personal-upgrade.mjs seed "$program" "$upgradeProfile" artifacts/legacy-state.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/personal-size-audit.mjs snapshot "$($baseline.FullName)" "$installPath" artifacts/size-before.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Remove-Item artifacts/baseline-installer -Recurse -Force
           $installer = Get-ChildItem release/mind -Filter '*.exe' | Select-Object -First 1
           $result = Start-Process -FilePath $installer.FullName -ArgumentList @('/S', "/D=$installPath") -Wait -PassThru
@@ -95,6 +83,9 @@ jobs:
           node scripts/verify-personal-upgrade.mjs verify "$program" "$upgradeProfile" artifacts/legacy-state.json
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           @{installer=$installer.Name;exitCode=$result.ExitCode;installedExecutable=$program;firewallRules=@(Get-NetFirewallRule -DisplayName 'EdgeEverMind-QA-offline-*' | Select-Object DisplayName,Enabled,Direction,Action)} | ConvertTo-Json -Depth 5 | Set-Content artifacts/installation.json
+          node scripts/personal-size-audit.mjs snapshot "$($installer.FullName)" "$installPath" artifacts/size-after.json
+          node scripts/personal-size-audit.mjs compare artifacts/size-before.json artifacts/size-after.json artifacts/size-comparison.json
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "MIND_INSTALLED_EXECUTABLE=$program" >> $env:GITHUB_ENV
       - name: Installed Windows acceptance and screenshots
         run: node scripts/verify-personal-acceptance.mjs "$env:MIND_INSTALLED_EXECUTABLE"

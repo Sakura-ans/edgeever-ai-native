@@ -5,38 +5,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./diagram-layout": "./src/diagram-layout.ts",
-    "./ai-prompt-seeds": "./src/ai-prompt-seeds.ts",
-    "./deployment-metadata": "./src/deployment-metadata.ts",
-    "./editor-link": "./src/editor-link.ts",
-    "./image-display": "./src/image-display.ts",
-    "./image-gallery-editing": "./src/image-gallery-editing.ts",
-    "./native-image-gallery": "./src/native-image-gallery.ts",
-    "./i18n": "./src/i18n/index.ts",
-    "./i18n/locales": "./src/i18n/locales.ts",
-    "./memo-template-seeds": "./src/memo-template-seeds.ts",
-    "./default-workspace-seeds": "./src/default-workspace-seeds.ts",
-    "./mathematics": "./src/mathematics.ts",
-    "./mobile-editor": "./src/mobile-editor.ts",
-    "./mobile-ui": "./src/mobile-ui.ts",
-    "./note-image-card": "./src/note-image-card.ts"
+    "./diagram-layout": "./src/diagram-layout.ts"
   },
   "types": "./src/index.ts",
   "dependencies": {
     "@dagrejs/dagre": "3.1.1",
-    "@tiptap/core": "3.31.4",
-    "@tiptap/extension-details": "3.31.4",
-    "@tiptap/extension-image": "3.31.4",
-    "@tiptap/extension-link": "3.31.4",
-    "@tiptap/extension-list": "3.31.4",
-    "@tiptap/extension-mathematics": "3.31.4",
-    "@tiptap/extension-table": "3.31.4",
-    "@tiptap/markdown": "3.31.4",
-    "@tiptap/pm": "3.31.4",
-    "@tiptap/starter-kit": "3.31.4",
-    "js-base64": "3.9.3",
-    "katex": "0.18.2",
-    "yaml": "2.8.3",
-    "zod": "4.6.6"
+    "js-base64": "3.9.3"
   }
 }

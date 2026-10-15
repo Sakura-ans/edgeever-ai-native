@@ -1,9 +1,11 @@
-import {useEffect,useRef} from 'react';
+import {useEffect,useRef,useState} from 'react';
 import {Graph} from '@antv/x6';
 import {buildDiagramPalette,resolveMindMapNodeStyle,mindMapTopicMarkup,mindMapNodeRole,mindMapBranchSides,mindMapEdgeTerminal,mindMapEdgeVisual,mindMapEdgeLineAttrs,mindMapSiblingSpan,mindMapConnector,type DiagramDocument} from '@edgeever/shared';
 Graph.registerConnector('personal-mindmap',mindMapConnector,true);
 export function Canvas({document,selected='',onSelect=()=>{},onMove=()=>{},shell='paper',preview=false}:{document:DiagramDocument;selected?:string;onSelect?:(id:string)=>void;onMove?:(id:string,x:number,y:number)=>void;shell?:string;preview?:boolean}) {
  const host=useRef<HTMLDivElement>(null),graph=useRef<Graph|null>(null);
+ const [fontEpoch,setFontEpoch]=useState(0);
+ useEffect(()=>{const done=()=>setFontEpoch(v=>v+1);window.document.fonts.addEventListener('loadingdone',done);return()=>window.document.fonts.removeEventListener('loadingdone',done);},[]);
  const callbacks=useRef({onSelect,onMove});callbacks.current={onSelect,onMove};
  useEffect(()=>{
   const g=new Graph({container:host.current!,async:false,autoResize:true,background:{color:'transparent'},grid:false,panning:!preview,mousewheel:{enabled:!preview,modifiers:['ctrl','meta']},interacting:{nodeMovable:!preview,edgeMovable:false,arrowheadMovable:false}});graph.current=g;
@@ -27,6 +29,6 @@ export function Canvas({document,selected='',onSelect=()=>{},onMove=()=>{},shell
    g.addEdge({id:e.id,zIndex:-1,source:{cell:source.id,...mindMapEdgeTerminal(source,role,sides.source,structure)},target:{cell:target.id,...mindMapEdgeTerminal(target,style.role,sides.target,structure)},connector:{name:'personal-mindmap',args:{structure,sourceWidth:visual.sourceWidth,targetWidth:visual.targetWidth,...(span?{braceTop:span.top,braceBottom:span.bottom}:{})}},attrs:{line:{...mindMapEdgeLineAttrs(structure,visual.stroke),stroke:visual.stroke,targetMarker:null,sourceMarker:null}}});
   }
   if(preview)g.zoomToFit({padding:12,maxScale:.55});
- },[document,selected,shell,preview]);
+ },[document,selected,shell,preview,fontEpoch]);
  return <div className={preview?'mini-map':'canvas-stage'}><div className="canvas" ref={host}/>{!preview&&<button className="canvas-fit" onClick={()=>graph.current?.zoomToFit({padding:36,maxScale:1})}>适应画布</button>}</div>;
 }

@@ -1,184 +1,32 @@
-# EdgeEver Mind (personal Windows preview)
+# EdgeEver Mind
 
-[简体中文](personal-mind.zh-CN.md)
+An offline, login-free personal mind-map workspace built on EdgeEver's shared diagram engine. Local JSON storage, paper and studio application shells, all 11 legacy palettes and 13 structures, plus parchment/studio palettes. Shells never replace map styling or geometry.
 
-This fork's personal product uses the existing React/Vite renderer stack, AntV X6 and
-DiagramDocument IR. It starts through a dedicated Electron entry point and does
-not initialize the original login, sidecar account, cloud sync, updater, plugin or
-ACP auto-install services. No server is required for the local workspace. The
-original EdgeEver application remains available through its original commands.
+## Development
 
-## Run and package
+Use the Bun version pinned in package.json:
 
 ```sh
 bun install --frozen-lockfile
-# Terminal 1
-bun run dev:web
-# Terminal 2 (PowerShell)
-$env:EDGEEVER_MIND_DEV_URL='http://127.0.0.1:5173/personal.html'
-bun run --cwd apps/desktop dev:mind
-```
-
-For production on Windows:
-
-```powershell
-$env:EDGE_EVER_DESKTOP_BUILD='1'
-bun run build:web
-bun run --cwd apps/desktop dist:mind
-```
-
-The unsigned x64 NSIS installer is written to `release/mind`. The personal CI
-workflow builds a repository Actions artifact; it does not publish a
-Release or deploy anything. `electron-builder.mind.yml` uses a distinct app ID,
-executable name and data directory, with no update feed. Upstream synchronization
-is disabled for this repository in the upstream sync workflow **once that change
-is on the default branch**. Merely pushing this feature branch cannot change a
-scheduled workflow that still runs from main.
-
-## Local data and recovery
-
-An explicit `--user-data-dir=<absolute path>` selects an independent profile,
-including the single-instance lock. Automated tests assert this actual path;
-changing `APPDATA` alone is not treated as Windows profile isolation.
-
-Windows data lives in `%APPDATA%/EdgeEverMind/maps/workspace.json`. Existing
-EdgeEver accounts and SQLite databases are not migrated or read. This first
-personal workspace uses a small validated JSON repository, deliberately isolated
-from the account-bound Rust SQLite repository. Writes are serialized, flushed to
-a temporary file and atomically renamed; `workspace.previous.json` retains the
-previous successful state. A failed read does not silently create a new workspace.
-There is no claim of cross-version SQLite migration compatibility.
-
-The workspace supports create/rename/delete, node edits and subtree deletion,
-canvas dragging, outline selection, autosave, persistent undo/redo (50 document
-states per map) and portable JSON backups. Import adds independent copies rather
-than overwriting maps. Limits: 500 maps, 2,000 nodes per map, tree depth 100 and an
-8 MB workspace/backup envelope. Typing generates individual undo steps. Map
-rename/delete are not document undo steps; export a backup before deleting a map.
-To recover from a damaged file, close the application and preserve the damaged
-file, then restore an exported backup or the previous state as `workspace.json`.
-
-## AI authority boundary
-
-DeepSeek uses `https://api.deepseek.com/anthropic`. The editable default model ID is `deepseek-flash`;
-this default does not imply a verified provider request. Keys are stored only by Electron main using OS `safeStorage`.
-Plaintext/basic-text fallback is rejected. The renderer can see only whether a
-key exists; a blank key preserves the existing one and a separate action removes
-it. No startup model request is made.
-
-The official Claude Agent SDK is pinned to 0.3.300, including its native CLI. It
-owns the agent loop and streaming. This personal entry uses the SDK directly,
-not the existing ACP host: the latter automatically permits tools and exposes
-note mutations, which is incompatible with this product's confirmation boundary.
-No replacement agent engine is implemented. The SDK receives an isolated temporary
-working/config directory, no filesystem settings, no skills/plugins, no built-in
-tools, strict MCP configuration, and a deny-by-default permission callback.
-Only two in-process MCP tools exist: `read_map` and `propose_map`. There is no
-apply, database, shell or file tool. Proposals are validated and retained in main
-process memory; they do not write workspace data. Only a trusted renderer IPC
-confirmation can consume a proposal and perform a revision-checked save. A stale
-proposal fails, refusal writes nothing, and an approved edit enters undo history.
-Pending proposals expire on restart. These are SDK capability restrictions, not
-an OS sandbox for an untrusted SDK binary.
-
-Both complete assistant messages and streaming text deltas are supported. Only
-an explicit send transmits the current map through the MCP read tool; no actual
-provider requests or real keys were used during implementation validation.
-
-## Verification and outstanding acceptance
-
-```sh
-bun scripts/test-personal.mjs
+bun run test
 bun run typecheck
-bun run typecheck:mobile
-EDGE_EVER_DESKTOP_BUILD=1 bun run build:web
-# With dev:web already running (Chromium override is optional):
-CHROMIUM_PATH=/usr/bin/chromium node scripts/verify-personal-mind.mjs
+bun run build:web
+bun run dev:web
+bun run dev:desktop
 ```
 
-The browser check uses the real local repository behind a mocked Electron bridge
-and synthetic data. It covers create/edit, outline/canvas, reload, undo/redo,
-proposal refusal/approval/rollback and browser errors. It is not an Electron IPC,
-Windows DPAPI, installer or first-offline-launch test. A separate
-`scripts/verify-personal-package.mjs <unpacked executable>` smoke check exercises
-the real Electron bridge, create/save/reload and the bundled SDK binary without
-provider requests; it passed locally on Linux with a virtual display.
-The Windows evidence workflow now also runs an actual silent NSIS installation,
-blocks outbound traffic for the app and bundled SDK before fresh-profile launch,
-and executes `verify-personal-acceptance.mjs` on the installed executable. The
-Actions evidence artifact is authoritative for each run and includes screenshots,
-case results, installation details, and test logs. AI proposals are synthetic
-debugger injections into the live store; they exercise real approval IPC and
-filesystem writes without provider calls. Native file picker choices and
-secure-storage failure are injected; Windows encryption success uses real
-safeStorage with a synthetic key. Baseline 49 tests are reproduced separately
-from the expanded current suite.
+Build Windows NSIS with `bun run build:desktop`; outputs are under `release/mind`. Feature-branch CI installs the previous NSIS package, upgrades the same installation, and verifies a fresh offline profile, persistence, history, imports/exports and mock AI. It does not deploy or publish releases.
 
-Remaining acceptance:
-real DeepSeek requests need a secure credential input route and explicit small
-budget/data-scope approval. No secure Vault or secret-input tool was available
-during this task; do not send a key in chat or commit it. The app settings dialog
-is the available local entry point. CI checks do not substitute for every
-physical Windows hardware/OS configuration. Original-to-personal upgrade/migration is neither
-implemented nor validated; the apps install side by side. Power-loss durability,
-accessibility, and long-running large-map performance remain unverified.
+## Scope and compatibility
 
-## Readable review and editable project example
+The retained workspaces are the personal renderer, Electron local storage/security/Claude Agent SDK, and shared diagram model/layout. Account sync, server, notes/media editors, marketing site, mobile apps and browser extensions were removed from this personal branch. Git history preserves the original source. Existing JSON workspaces remain compatible; never delete user data during an upgrade.
 
-The review dialog shows Chinese addition/deletion/rename/move/other-change counts,
-full node paths and before/after cards. Same-named siblings have ordinal labels;
-subtree removals list every affected topic. Position, size, ordering and connection
-identity changes are disclosed. A collapsed complete outline provides context.
-No raw JSON is shown. Empty/invalid/no-op proposals are rejected by the store;
-known stale proposals disable confirmation, with authoritative revision checks
-still enforced on approval. Requests abort after two minutes using the SDK abort
-controller; cancellation and timeout are verified with mocks, not a real service.
+The default AI model identifier is `deepseek-flash`. Only an explicitly configured, user-initiated request may call a provider. Tests use mocks and synthetic credentials, with zero paid calls. Readable Chinese previews show additions, removals, renames and moves; approval writes changes, while AI cannot replace existing diagram style.
 
-The fixed endpoint is `https://api.deepseek.com/anthropic`. The non-secret default
-model is `deepseek-flash`; it remains editable. This default is user-requested,
-not evidence of a successful provider compatibility or billing test.
+## Fonts and licensing
 
-Import `examples/edgeever-mind-project.json` with **导入备份为副本**. This is a
-native editable backup containing 28 topics, created programmatically by
-`scripts/create-personal-project-map.mjs`, not generated by DeepSeek. It documents
-implemented capabilities and outstanding acceptance explicitly. **适应画布**
-fits the full diagram. The native acceptance script imports it, edits and undoes
-it, restarts the app and captures screenshots. The example and report accompany
-those screenshots in the small Actions evidence artifact. The current unit suite
-adds readable-diff, size/depth/name limits, cyclic moves, corrupt/unsupported
-imports, no-op rejection, restart rollback, and timeout checks; it does not claim
-exhaustive adversarial or large-map performance coverage.
+Pinned `@fontsource-variable/noto-sans-sc@5.3.0` is self-hosted with all 101 unchanged WOFF2 partitions referenced by upstream index.css. No application-text subsetting, online fonts or CDN. Weights 100–900 are available; system fallback handles characters outside the font repertoire. OFL-1.1 font licensing, project AGPL-3.0 and third-party notices ship with the app; see LICENSE and NOTICE.
 
-## Shells and persistent diagram styles
+## Evidence and size accounting
 
-The top appearance button switches between warm paper and dark studio. Shell and
-left-panel visibility preferences are stored locally, independently of map data.
-The right panel can show properties, styles, or AI, and can be hidden. Windows
-can be narrowed to 640 pixels. All typography uses local system fonts.
-
-The style library keeps all original 11 color presets and 13 structures, adding
-`parchment` and `studio` colors. Historical IDs and aliases remain unchanged
-(in particular, legacy `paper` still maps to `brand`). Theme cards render miniature
-X6 maps; structure thumbnails are shared with the original editor. Root, primary
-and leaf visuals and all seven layout families use the shared diagram modules.
-Color previews are temporary until applied, and cancel/closing the panel writes
-nothing. Changing a structure asks before rearranging and records a single undo
-step. Appearance and color changes preserve authored coordinates.
-
-The JSON validator now retains and validates theme/structure in documents and
-history. Old documents with no style remain valid. Backup export/import, previous
-state recovery, restart, undo/redo and AI approval preserve these fields. AI
-proposals always inherit the current document's style, even if the mock/provider
-attempts to replace it. Rollback is by reverting the feature commit; export styled
-workspaces first because older app versions discard style metadata on save.
-
-`node scripts/verify-personal-styles.mjs` exercises the renderer at 2x DPI using
-the real store behind a mock bridge. The same behavioral suite runs inside the
-installed Windows app, including all presets, layout undo, preview cancellation,
-appearance restart, sidebar collapse, keyboard and narrow viewport checks. The
-Windows workflow additionally installs the pinned previous successful NSIS build
-(run 38723757542, commit 3fc3c244), seeds a real profile, installs this version to
-the same path, and verifies data/history continuity. The separate fresh-profile
-acceptance still runs with outbound firewall rules in place. Each run's artifacts
-are the authority on whether those checks passed; adding a test is not proof it
-ran. No real provider requests are part of these checks.
+`.github/workflows/personal-mind.yml` produces the installer, real Windows screenshots and HTML report. `scripts/personal-size-audit.mjs` compares actual NSIS executable bytes and recursive installed-file byte sums under matching packaging settings, including font cost. Artifact ZIP size is a different metric. CI desktop acceptance does not certify every physical device.

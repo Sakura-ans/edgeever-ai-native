@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { DIAGRAM_CANVAS_DARK, DIAGRAM_CANVAS_LIGHT } from "./diagram-canvas.ts";
 import { createDefaultDiagramDocument, DIAGRAM_SELECTABLE_STRUCTURES, DIAGRAM_SELECTABLE_THEMES, diagramDocumentToMermaid, diagramFallbackMarkdown, hasDiagramDocumentMarker, parseDiagramDocument, serializeDiagramDocument, stripDiagramDocumentMarker } from "./diagram.ts";
 import { diagramDocumentToX6Cells } from "./diagram-view.ts";
-import { markdownToDoc } from "./content.ts";
 
 describe("diagram document", () => {
   test("round-trips unicode labels through the Markdown compatibility envelope", () => {
@@ -87,8 +86,6 @@ describe("diagram document", () => {
     naive.theme = "naive";
     expect(diagramDocumentToMermaid(naive)).toContain("classDef flowProcess fill:#FFFFFF,stroke:#6F9B88");
 
-    const doc = markdownToDoc(markdown);
-    expect(doc.content?.some((node) => node.type === "codeBlock" && node.attrs?.language === "mermaid")).toBe(true);
   });
 
   test("persists flowchart paper and ink surfaces in the native projection", () => {
