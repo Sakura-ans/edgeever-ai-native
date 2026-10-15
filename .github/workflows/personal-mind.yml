@@ -93,6 +93,8 @@ jobs:
           MIND_QA_OUTPUT: artifacts/personal-acceptance
           MIND_INSTALLER_TESTED: '1'
           MIND_OFFLINE_FIREWALL: '1'
+      - name: Compact synthetic screenshot report transfer
+        run: node scripts/personal-report-transfer.mjs artifacts/personal-acceptance/EdgeEver-Mind-results.html
       - name: Upload test evidence even on failure
         if: always()
         uses: actions/upload-artifact@v4
