@@ -3,11 +3,11 @@ import {expect} from '@playwright/test';
 // Runs unchanged against browser + real store and installed Windows + real IPC.
 export async function verifyRepairs({page,snapshot,restart,diskFault,externalRename,aiMode,propose,shot,check}){
  const saved=()=>expect(page.getByRole('status')).toHaveText('已保存到本机',{timeout:15000});
- const map=async()=>{const title=await page.getByLabel('导图名称').inputValue();return (await snapshot()).maps.find(m=>m.title===title)??(await snapshot()).maps.at(-1);};
+ let testMapId;const map=async()=>{const current=(await snapshot()).maps.find(m=>m.id===testMapId);assert.ok(current,'repair map must be resolved by stable id');return current;};
  const panel=async name=>{const b=page.getByRole('button',{name,exact:true});if(await b.getAttribute('aria-pressed')!=='true')await b.click();};
  const dismiss=async()=>{if(await page.getByRole('button',{name:'关闭错误提示'}).count())await page.getByRole('button',{name:'关闭错误提示'}).click();};
  if(!await page.getByRole('button',{name:'＋ 新建导图'}).isVisible())await page.getByRole('button',{name:'☷ 导图库'}).click();
- await page.getByRole('button',{name:'＋ 新建导图'}).click();await page.getByLabel('新导图名称').fill('十项修复验收');await page.getByRole('button',{name:'创建',exact:true}).click();await saved();
+ await page.getByRole('button',{name:'＋ 新建导图'}).click();await page.getByLabel('新导图名称').fill('十项修复验收');await page.getByRole('button',{name:'创建',exact:true}).click();await saved();testMapId=(await snapshot()).maps.at(-1).id;
  await check('F1 write failure keeps recoverable draft; reload synchronizes buffers without false saved status',async()=>{
   const before=await map();await diskFault(true);await page.getByLabel('主题内容').fill('磁盘失败后保留的中文草稿');await expect(page.getByRole('alert')).toContainText('磁盘空间不足');assert.deepEqual((await map()).document,before.document);await diskFault(false);
   await page.getByRole('button',{name:'重新读取',exact:true}).click();await expect(page.getByLabel('主题内容')).toHaveValue(before.document.nodes[0].label);await expect(page.getByRole('status')).toContainText('有未保存草稿');await expect(page.getByRole('region',{name:'未保存草稿'})).toContainText('磁盘失败后保留的中文草稿');await shot('31-draft-recovery');
@@ -18,7 +18,7 @@ export async function verifyRepairs({page,snapshot,restart,diskFault,externalRen
  });
  await check('F1 conflict reload refreshes title; restart retains unsaved draft independently of workspace',async()=>{
   const before=await map();await externalRename(before.id,'外部较新名称');await page.getByLabel('导图名称').fill('冲突中的名称草稿');await expect(page.getByRole('alert')).toContainText('版本已变化');await page.getByRole('button',{name:'重新读取'}).click();await expect(page.getByLabel('导图名称')).toHaveValue('外部较新名称');await page.getByRole('button',{name:'放弃草稿，恢复本机内容'}).click();
-  await diskFault(true);await page.getByLabel('主题内容').fill('重启恢复草稿');await expect(page.getByRole('alert')).toContainText('磁盘空间不足');await diskFault(false);page=await restart();await page.getByRole('button',{name:'外部较新名称',exact:true}).click();await expect(page.getByRole('region',{name:'未保存草稿'})).toContainText('重启恢复草稿');assert.notEqual((await map()).document.nodes[0].label,'重启恢复草稿');await page.getByRole('button',{name:'重试保存草稿'}).click();await saved();
+  await diskFault(true);await page.getByLabel('主题内容').fill('重启恢复草稿');await expect(page.getByRole('alert')).toContainText('磁盘空间不足');await diskFault(false);page=await restart();await page.getByRole('button',{name:'外部较新名称',exact:true}).click();await expect(page.getByLabel('导图名称')).toHaveValue('外部较新名称');await expect(page.getByRole('region',{name:'未保存草稿'})).toContainText('重启恢复草稿');assert.notEqual((await map()).document.nodes[0].label,'重启恢复草稿');await page.getByRole('button',{name:'重试保存草稿'}).click();await saved();
  });
  await check('F2 synthetic composition lifecycle and Windows 229 boundary do not blur or trigger structure actions',async()=>{
   const count=(await map()).document.nodes.length;
@@ -30,7 +30,7 @@ export async function verifyRepairs({page,snapshot,restart,diskFault,externalRen
   const input=page.getByLabel('主题内容');const before=await map();await input.fill('');await input.pressSequentially('ABCDEFGHIJ',{delay:20});await saved();let m=await map();assert.equal(m.document.nodes[0].label,'ABCDEFGHIJ');assert.equal(m.undo.length,before.undo.length+1);
   await input.press('Tab');await page.getByRole('button',{name:'撤销',exact:true}).click();await saved();await expect(input).toHaveValue(before.document.nodes[0].label);await page.getByRole('button',{name:'重做',exact:true}).click();await saved();await expect(input).toHaveValue('ABCDEFGHIJ');
   await input.fill('ABCDEFGHIJK');await saved();const split=(await map()).undo.length;await input.press('Tab');await input.fill('ABCDEFGHIJKL');await saved();assert.equal((await map()).undo.length,split+1);await page.waitForTimeout(1600);await input.fill('ABCDEFGHIJKLM');await saved();assert.equal((await map()).undo.length,split+2);
-  await page.locator('.outline.selected').click();await input.fill('ABCDEFGHIJKLMN');await saved();assert.equal((await map()).undo.length,split+3);const persisted=await map();page=await restart();await page.getByRole('button',{name:persisted.title,exact:true}).click();assert.deepEqual((await map()).undo,persisted.undo);
+  await page.locator('.outline.selected').click();await input.fill('ABCDEFGHIJKLMN');await saved();assert.equal((await map()).undo.length,split+3);const persisted=await map();page=await restart();await page.getByRole('button',{name:persisted.title,exact:true}).click();await expect(page.getByLabel('导图名称')).toHaveValue(persisted.title);assert.deepEqual((await map()).undo,persisted.undo);
  });
  await check('F4 sibling, reparent and structural keyboard controls are discoverable and prevent cycles',async()=>{
   await page.getByRole('button',{name:'添加子主题',exact:true}).click();await saved();await page.getByLabel('主题内容').fill('分支甲');await saved();const a=(await map()).document.nodes.find(n=>n.label==='分支甲').id;
