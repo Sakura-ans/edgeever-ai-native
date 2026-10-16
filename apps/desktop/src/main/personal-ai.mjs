@@ -60,7 +60,7 @@ export async function runPersonalAgent({store,mapId,revision,prompt,config,onEve
     let partial = false;
     for await (const message of stream) {
       // SDK API-error assistant messages are structured failures, not model text.
-      if(message.type==='assistant'&&message.error){const code={authentication_failed:'AI_AUTH',oauth_org_not_allowed:'AI_AUTH',account_on_hold:'AI_AUTH',verification_required:'AI_AUTH',cloud_credential_error:'AI_AUTH',billing_error:'AI_RATE',rate_limit:'AI_RATE',invalid_request:'AI_MODEL',model_not_found:'AI_MODEL',max_output_tokens:'AI_LIMIT'}[message.error]??'AI_PROVIDER';throw new MindError(code);}
+      if(message.type==='assistant'&&(message.error||message.api_error_status>=400))throw providerError(message);
 
       if (message.type === 'stream_event' && message.event?.type === 'content_block_delta' && message.event.delta?.type === 'text_delta') {partial = true; onEvent({type:'text',text:message.event.delta.text});}
       if (message.type === 'assistant') {

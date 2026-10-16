@@ -22,6 +22,11 @@ jobs:
           mkdir -p artifacts
           set -o pipefail
           bun scripts/test-personal.mjs 2>&1 | tee artifacts/unit-tests.log
+      - name: Native Linux Chinese error dialogs
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb xdotool imagemagick
+          xvfb-run -a node scripts/verify-personal-dialogs.mjs
       - run: bun run typecheck
       - run: bun run build:web
       - uses: actions/upload-artifact@v4

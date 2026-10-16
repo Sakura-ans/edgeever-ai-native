@@ -20,3 +20,7 @@ Run `bun run test`, `bun run typecheck`, `bun run build:web`; with the renderer 
 Drafts use separate local application storage; they never count as committed workspace data. If draft storage also fails, the UI warns that the draft remains in memory only. Backups contain committed workspace only; drafts can be viewed/copied separately. Grouping tokens are process-local; persistent undo/redo retains the existing backup schema.
 
 All data and credentials are synthetic in isolated test profiles. Only mock SDK/local mock providers are used, with no paid calls. CI virtual Windows acceptance does not certify every physical device or actual Windows IME. The originating independent-review session must reassess the final result; self-regression is not independent acceptance.
+
+## SDK HTTP / native dialog follow-up
+
+F3: The real Claude SDK calls a local mock provider for HTTP 400/401/403/422/429/503. api_error_status takes precedence, followed by known structured types; raw error bodies are never displayed. Tests explicitly disable SDK retries to exercise each terminal error boundary without extending assertion timeouts. F10: Startup and runtime dialogs use an explicit Chinese close-app button with safe default/cancel indices; import/export titles, action labels and file filters are also Chinese.

@@ -1,3 +1,4 @@
+import {nativeErrorOptions} from './personal-dialogs.mjs';
 import {MindError,userError,diagnostic} from './personal-errors.mjs';
 import { app, BrowserWindow, ipcMain, dialog, safeStorage, protocol, net } from 'electron';
 import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
@@ -16,7 +17,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 else {
 let window, store, agentRequests;
 let fatalReported=false;
-function fatal(error){if(fatalReported)return;fatalReported=true;console.error(JSON.stringify(diagnostic(error,'runtime')));const safe=userError(error,'RUNTIME_FAILURE');dialog.showErrorBox('EdgeEver Mind 运行异常',`${safe.message}（错误代码：${safe.code}）`);app.exit(1);}
+function fatal(error){if(fatalReported)return;fatalReported=true;console.error(JSON.stringify(diagnostic(error,'runtime')));dialog.showMessageBoxSync(nativeErrorOptions(error,'RUNTIME_FAILURE','EdgeEver Mind 运行异常'));app.exit(1);}
 process.on('uncaughtException',fatal);process.on('unhandledRejection',fatal);
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -46,12 +47,12 @@ app.whenReady().then(async () => {
   handle('approve',id => store.approve(id));
   handle('reject',id => { store.reject(id); return true; });
   handle('export',async () => {
-    const selected = await dialog.showSaveDialog(window,{defaultPath:'edgeever-mind-backup.json',filters:[{name:'Mind map backup',extensions:['json']}]});
+    const selected = await dialog.showSaveDialog(window,{title:'导出导图备份',buttonLabel:'保存备份',defaultPath:'edgeever-mind-backup.json',filters:[{name:'导图备份',extensions:['json']}]});
     if (selected.canceled) return false;
     await writeFile(selected.filePath,JSON.stringify(store.snapshot(),null,2),{mode:0o600}); return true;
   });
   handle('import',async () => {
-    const selected = await dialog.showOpenDialog(window,{properties:['openFile'],filters:[{name:'Mind map backup',extensions:['json']}]});
+    const selected = await dialog.showOpenDialog(window,{title:'导入导图备份',buttonLabel:'导入备份',properties:['openFile'],filters:[{name:'导图备份',extensions:['json']}]});
     if (selected.canceled) return store.snapshot();
     const raw = await readFile(selected.filePaths[0],'utf8');
     if (raw.length > 8_000_000) throw new MindError('TOO_LARGE');
@@ -101,6 +102,6 @@ app.whenReady().then(async () => {
   window.webContents.session.setPermissionRequestHandler((_wc,_permission,callback) => callback(false));
   if (!app.isPackaged && process.env.EDGEEVER_MIND_DEV_URL) await window.loadURL(process.env.EDGEEVER_MIND_DEV_URL);
   else await window.loadURL('edgeever-mind://app/personal.html').catch(()=>{throw new MindError('APP_LOAD');});
-}).catch(async error => { console.warn(JSON.stringify(diagnostic(error,'startup')));const safe=userError(error,'WORKSPACE_READ');await dialog.showMessageBox({type:'error',message:'EdgeEver Mind 无法启动',detail:`${safe.message}（错误代码：${safe.code}）`}); app.quit(); });
+}).catch(async error => { console.warn(JSON.stringify(diagnostic(error,'startup')));await dialog.showMessageBox(nativeErrorOptions(error,'WORKSPACE_READ','EdgeEver Mind 无法启动')); app.quit(); });
 app.on('window-all-closed',() => { agentRequests?.cancel(); app.quit(); });
 }

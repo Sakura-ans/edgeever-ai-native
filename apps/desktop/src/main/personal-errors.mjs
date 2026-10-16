@@ -55,7 +55,12 @@ export function providerError(error){
  if(['MODULE_NOT_FOUND','ERR_MODULE_NOT_FOUND'].includes(error?.code))return new MindError('SDK_MISSING');
  if(error?.name==='TimeoutError')return new MindError('AI_TIMEOUT');
  const known=userError(error);if(known.code!=='UNKNOWN')return new MindError(known.code);
- const status=Number(error?.status??error?.statusCode);const code=[401,403].includes(status)?'AI_AUTH':status===429?'AI_RATE':[400,404,422].includes(status)?'AI_MODEL':status>=500?'AI_PROVIDER':['ENOTFOUND','ECONNREFUSED','ECONNRESET','ETIMEDOUT','EHOSTUNREACH','ENETUNREACH'].includes(error?.code)?'AI_NETWORK':error?.name==='AbortError'?'AI_STOPPED':'AI_PROVIDER';return new MindError(code);
+ // Prefer numeric transport metadata over the SDK's generic "unknown" label.
+ const status=[error?.api_error_status,error?.status,error?.statusCode].find(value=>Number.isInteger(value)&&value>=400&&value<=599);
+ const byStatus=[401,403].includes(status)?'AI_AUTH':status===429?'AI_RATE':[400,404,405,413,415,422].includes(status)?'AI_MODEL':status===408?'AI_TIMEOUT':status>=500?'AI_PROVIDER':undefined;
+ const type=typeof error?.error==='string'?error.error:error?.error?.type??error?.type;
+ const byType={authentication_failed:'AI_AUTH',authentication_error:'AI_AUTH',permission_error:'AI_AUTH',oauth_org_not_allowed:'AI_AUTH',account_on_hold:'AI_AUTH',verification_required:'AI_AUTH',cloud_credential_error:'AI_AUTH',billing_error:'AI_RATE',rate_limit:'AI_RATE',rate_limit_error:'AI_RATE',invalid_request:'AI_MODEL',invalid_request_error:'AI_MODEL',model_not_found:'AI_MODEL',not_found_error:'AI_MODEL',max_output_tokens:'AI_LIMIT',api_error:'AI_PROVIDER',overloaded_error:'AI_PROVIDER'}[type];
+ const code=byStatus??byType??(['ENOTFOUND','ECONNREFUSED','ECONNRESET','ETIMEDOUT','EHOSTUNREACH','ENETUNREACH'].includes(error?.code)?'AI_NETWORK':error?.name==='AbortError'?'AI_STOPPED':'AI_PROVIDER');return new MindError(code);
 }
 export function diagnostic(error,operation){const safe=userError(error);return {kind:['TypeError','SyntaxError','RangeError','Error'].includes(error?.name)?error.name:'Error',operation:String(operation).replace(/[^a-z-]/gi,'').slice(0,40),code:safe.code};}
 export const titleProblem=value=>typeof value!=='string'||!value.trim()?'TITLE_REQUIRED':Array.from(value).length>200?'TITLE_LONG':null;
