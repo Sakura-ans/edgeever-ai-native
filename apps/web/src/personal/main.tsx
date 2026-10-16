@@ -198,4 +198,9 @@ function App() {
       <div className="actions"><button onClick={() => void perform(async()=>{await bridge!.reject(proposal.id);setProposals(p=>p.slice(1));},'proposal')}>拒绝，不修改</button><button disabled={busy || stale || !changes.length} onClick={() => void perform(async () => {try {return await bridge!.approve(proposal.id);} finally {setProposals(p => p.slice(1));}})}>确认应用 · 可撤销</button></div></section></div>}
   </div>;
 }
-createRoot(document.getElementById('root')!).render(<App/>);
+class AppBoundary extends React.Component<{children:React.ReactNode},{failed:boolean}> {
+ state={failed:false};static getDerivedStateFromError(){return {failed:true};}
+ componentDidCatch(){console.warn('MIND_RENDER_FAILURE');}
+ render(){return this.state.failed?<div role="alert" className="dialog"><h2>界面暂时无法显示</h2><p>请重新打开工作台，并检查未保存草稿的恢复提示。（错误代码：RUNTIME_FAILURE）</p><button onClick={()=>window.location.reload()}>重新打开工作台</button></div>:this.props.children;}
+}
+createRoot(document.getElementById('root')!,{onCaughtError:()=>console.warn('MIND_RENDER_FAILURE'),onUncaughtError:()=>console.warn('MIND_RENDER_FAILURE'),onRecoverableError:()=>console.warn('MIND_RENDER_RECOVERED')}).render(<AppBoundary><App/></AppBoundary>);

@@ -15,6 +15,10 @@ protocol.registerSchemesAsPrivileged([{scheme:'edgeever-mind',privileges:{standa
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
 let window, store, agentRequests;
+let fatalReported=false;
+function fatal(error){if(fatalReported)return;fatalReported=true;console.error(JSON.stringify(diagnostic(error,'runtime')));const safe=userError(error,'RUNTIME_FAILURE');dialog.showErrorBox('EdgeEver Mind 运行异常',`${safe.message}（错误代码：${safe.code}）`);app.exit(1);}
+process.on('uncaughtException',fatal);process.on('unhandledRejection',fatal);
+
 const here = dirname(fileURLToPath(import.meta.url));
 const configPath = () => join(app.getPath('userData'),'deepseek.bin');
 const secure = () => {
@@ -83,6 +87,7 @@ app.whenReady().then(async () => {
     return net.fetch(pathToFileURL(file).toString());
   });
   window = new BrowserWindow({width:1400,height:900,minWidth:640,minHeight:650,title:'EdgeEver Mind',webPreferences:{preload:join(here,'../preload/personal.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window.webContents.on('render-process-gone',(_event,details)=>{if(details.reason!=='clean-exit')fatal(new MindError('RUNTIME_FAILURE'));});
   let closing = false;
   handle('close-ready',async () => { await store.queue; closing = true; window.close(); return true; });
   window.on('close',event => {

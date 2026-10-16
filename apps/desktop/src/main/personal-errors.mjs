@@ -1,6 +1,7 @@
 // One public error contract for main, renderer and SDK boundaries. Never expose
 // arbitrary exception messages, paths, provider response bodies or credentials.
 export const ERROR_CATALOG = Object.freeze({
+ RUNTIME_FAILURE:['应用运行中断，请重新打开，并检查未保存草稿的恢复提示。','none'],
  SDK_MISSING:['AI 运行组件不完整，请重新安装完整安装包。现有导图仍保留在本机。','none'],
  APP_LOAD:['应用资源无法加载，请重新安装完整安装包；本机导图不会因此被删除。','none'],
  DESKTOP_REQUIRED:['请从 EdgeEver Mind 桌面应用打开此工作台。','none'],
@@ -56,5 +57,5 @@ export function providerError(error){
  const known=userError(error);if(known.code!=='UNKNOWN')return new MindError(known.code);
  const status=Number(error?.status??error?.statusCode);const code=[401,403].includes(status)?'AI_AUTH':status===429?'AI_RATE':[400,404,422].includes(status)?'AI_MODEL':status>=500?'AI_PROVIDER':['ENOTFOUND','ECONNREFUSED','ECONNRESET','ETIMEDOUT','EHOSTUNREACH','ENETUNREACH'].includes(error?.code)?'AI_NETWORK':error?.name==='AbortError'?'AI_STOPPED':'AI_PROVIDER';return new MindError(code);
 }
-export function diagnostic(error,operation){const safe=userError(error);return {operation:String(operation).replace(/[^a-z-]/gi,'').slice(0,40),code:safe.code};}
+export function diagnostic(error,operation){const safe=userError(error);return {kind:['TypeError','SyntaxError','RangeError','Error'].includes(error?.name)?error.name:'Error',operation:String(operation).replace(/[^a-z-]/gi,'').slice(0,40),code:safe.code};}
 export const titleProblem=value=>typeof value!=='string'||!value.trim()?'TITLE_REQUIRED':Array.from(value).length>200?'TITLE_LONG':null;
