@@ -30,3 +30,5 @@ Pinned `@fontsource-variable/noto-sans-sc@5.3.0` is self-hosted with all 101 unc
 ## Evidence and size accounting
 
 `.github/workflows/personal-mind.yml` produces the installer, real Windows screenshots and HTML report. `scripts/personal-size-audit.mjs` compares actual NSIS executable bytes and recursive installed-file byte sums under matching packaging settings, including font cost. Artifact ZIP size is a different metric. CI desktop acceptance does not certify every physical device.
+
+Repair notes, reproducible checks and IME/mock boundaries: [ten-item repair checklist](personal-repairs.md).

@@ -1,3 +1,4 @@
+import {verifyRepairs} from './personal-repair-acceptance.mjs';
 import {compactReport} from './personal-compact-report.mjs';
 import {verifyStyles} from './personal-style-acceptance.mjs';
 import {_electron as electron,expect} from '@playwright/test';
@@ -10,7 +11,7 @@ const executable=resolve(process.argv[2]);
 const output=resolve(process.env.MIND_QA_OUTPUT ?? 'artifacts/personal-acceptance');
 await mkdir(output,{recursive:true});
 const profile=await mkdtemp(join(tmpdir(),'mind-acceptance-'));
-const report={baseline:'790b45ef09b6b868a66d9f6e38b4df27e81a6c70',commit:process.env.GITHUB_SHA ?? 'local',platform:process.platform,source:process.env.MIND_INSTALLER_TESTED === '1' ? 'NSIS-installed Electron' : 'unpacked Electron',firstLaunchNetworkBlock:process.env.MIND_OFFLINE_FIREWALL === '1' ? 'Windows outbound firewall configured before first launch' : 'renderer/session network blocked after launch (not first-launch OS isolation)',syntheticDataOnly:true,paidProviderCalls:0,cases:[],screenshots:[],limitations:['No real DeepSeek requests or key used.','AI events are injected by the debugger into the live store; actual proposal/approval IPC and filesystem are used.','Native file picker selections and secure-storage failure are injected; native success-path crypto is real on Windows.','Running-agent cancellation and concurrent prompt reservation are tested with the mock SDK unit suite; native UI here checks idle cancellation and no-key failure.','CI virtual Windows desktop is not a physical consumer computer.']};
+const report={baseline:'cb001477eb655d9028cfb7af3aa0656a7f93bed4',commit:process.env.GITHUB_SHA ?? 'local',platform:process.platform,source:process.env.MIND_INSTALLER_TESTED === '1' ? 'NSIS-installed Electron' : 'unpacked Electron',firstLaunchNetworkBlock:process.env.MIND_OFFLINE_FIREWALL === '1' ? 'Windows outbound firewall configured before first launch' : 'renderer/session network blocked after launch (not first-launch OS isolation)',syntheticDataOnly:true,paidProviderCalls:0,cases:[],screenshots:[],limitations:['No real DeepSeek requests or key used.','AI events are injected by the debugger into the live store; actual proposal/approval IPC and filesystem are used.','Native file picker selections and secure-storage failure are injected; native success-path crypto is real on Windows.','AI error/cancellation/timeout UI tests use an inspector-injected local provider and the real request coordinator; no real model call.', 'IME tests inject composition and Windows keyCode 229 events; a physical Windows IME is not exercised.','CI virtual Windows desktop is not a physical consumer computer.']};
 let application,page;let allowDialog=true;const errors=[];
 const env={...process.env,APPDATA:join(profile,'environment-decoy'),XDG_CONFIG_HOME:join(profile,'environment-decoy')};
 // Windows CI fsync/antivirus scheduling can exceed Playwright's 5s default.
@@ -68,27 +69,27 @@ try {
  await check('AI mock approval, duplicate approval rejection, undo rollback',async()=>{
   const original=(await snapshot()).maps[0].document;await proposal('AI 已确认主题');const id=await application.evaluate(()=>[...globalThis.__qaStore.proposals.keys()][0]);
   await page.getByRole('button',{name:'确认应用 · 可撤销'}).click();await saved();assert.equal((await snapshot()).maps[0].document.nodes[0].label,'AI 已确认主题');const before=await disk();
-  const duplicate=await page.evaluate(async id=>{try{await window.edgeeverMind.approve(id);return '';}catch(e){return String(e);}},id);assert.match(duplicate,/expired/);assert.equal(await disk(),before);await shot('08-ai-approved');
+  const duplicate=await page.evaluate(async id=>{try{await window.edgeeverMind.approve(id);return '';}catch(e){return String(e);}},id);assert.match(duplicate,/PROPOSAL_EXPIRED/);assert.equal(await disk(),before);await shot('08-ai-approved');
   await page.getByRole('button',{name:'撤销',exact:true}).click();await saved();assert.deepEqual((await snapshot()).maps[0].document,original);await shot('09-ai-undo-rollback');
  });
  await check('AI stale revision fails visibly without overwriting newer edit',async()=>{
   await proposal('不可覆盖的新提案');await page.evaluate(async()=>{const s=await window.edgeeverMind.load();const m=s.maps[0];await window.edgeeverMind.command({type:'rename',id:m.id,revision:m.revision,title:'更晚的本地修改'});});const before=await disk();
-  await page.getByRole('button',{name:'确认应用 · 可撤销'}).click();await expect(page.getByRole('alert')).toContainText('Revision conflict');assert.equal(await disk(),before);await shot('10-revision-conflict');await page.getByRole('button',{name:'重新读取'}).click();await saved();
+  await page.getByRole('button',{name:'确认应用 · 可撤销'}).click();await expect(page.getByRole('alert')).toContainText('版本已变化');assert.equal(await disk(),before);await shot('10-revision-conflict');await page.getByRole('button',{name:'重新读取'}).click();await expect(page.getByRole('status')).toHaveText('已读取本机内容');
  });
  await check('AI request without credentials fails safely and cancellation is idempotent',async()=>{
-  await page.evaluate(()=>window.edgeeverMind.clearConfig());const before=await disk();await page.getByRole('button',{name:'✧ AI 助手',exact:true}).click();await page.getByLabel('AI 请求').fill('只用于测试：请添加一个主题');await page.getByRole('button',{name:'发送给 DeepSeek'}).click();await expect(page.getByRole('alert')).toBeVisible();assert.equal(await disk(),before);await page.evaluate(async()=>{await window.edgeeverMind.cancel();await window.edgeeverMind.cancel();});await shot('11-ai-no-credentials-error');await page.getByRole('button',{name:'重新读取'}).click();await saved();
+  await page.evaluate(()=>window.edgeeverMind.clearConfig());const before=await disk();await page.getByRole('button',{name:'✧ AI 助手',exact:true}).click();await page.getByLabel('AI 请求').fill('只用于测试：请添加一个主题');await page.getByRole('button',{name:'发送给 DeepSeek'}).click();await expect(page.getByRole('alert')).toBeVisible();assert.equal(await disk(),before);await page.evaluate(async()=>{await window.edgeeverMind.cancel();await window.edgeeverMind.cancel();});await shot('11-ai-no-credentials-error');await page.getByRole('button',{name:'关闭错误提示'}).click();
  });
  if(process.platform==='win32') await check('Windows native safeStorage encrypts synthetic key; renderer masks and never returns plaintext',async()=>{
-  await page.getByRole('button',{name:'DeepSeek 设置'}).click();await page.getByLabel('模型标识').fill('synthetic-model-no-provider-call');const keyInput=page.locator('input[type=password]');await keyInput.fill('SYNTHETIC-NOT-A-REAL-KEY-123');assert.equal(await keyInput.getAttribute('type'),'password');await shot('12-masked-synthetic-key');await page.getByRole('button',{name:'保存设置'}).click();await saved();
+  await page.getByRole('button',{name:'DeepSeek 设置'}).click();await page.getByLabel('模型标识').fill('synthetic-model-no-provider-call');const keyInput=page.locator('input[type=password]');await keyInput.fill('SYNTHETIC-NOT-A-REAL-KEY-123');assert.equal(await keyInput.getAttribute('type'),'password');await shot('12-masked-synthetic-key');await page.getByRole('button',{name:'保存设置'}).click();await expect(page.getByRole('dialog')).toHaveCount(0);
   const c=await page.evaluate(()=>window.edgeeverMind.config());assert.deepEqual(c,{model:'synthetic-model-no-provider-call',hasKey:true});
   const encrypted=await application.evaluate(({app})=>process.getBuiltinModule('fs').readFileSync(process.getBuiltinModule('path').join(app.getPath('userData'),'deepseek.bin')).toString('base64'));assert.ok(!Buffer.from(encrypted,'base64').includes(Buffer.from('SYNTHETIC-NOT-A-REAL-KEY-123')));
   await page.getByRole('button',{name:'DeepSeek 设置'}).click();await expect(page.locator('input[type=password]')).toHaveValue('');await shot('13-key-saved-no-plaintext');await page.getByRole('button',{name:'关闭',exact:true}).click();await page.evaluate(()=>window.edgeeverMind.clearConfig());
  });
  await check('safeStorage unavailable refuses credential write and reports error',async()=>{
   await application.evaluate(({safeStorage})=>{globalThis.__qaSecure=safeStorage.isEncryptionAvailable;safeStorage.isEncryptionAvailable=()=>false;});
-  await page.getByRole('button',{name:'DeepSeek 设置'}).click();await page.getByLabel('模型标识').fill('synthetic');await page.locator('input[type=password]').fill('SYNTHETIC-FAIL-CLOSED');await page.getByRole('button',{name:'保存设置'}).click();await expect(page.getByRole('alert')).toContainText('secure credential storage is unavailable');await shot('14-secure-storage-refusal');
+  await page.getByRole('button',{name:'DeepSeek 设置'}).click();await page.getByLabel('模型标识').fill('synthetic');await page.locator('input[type=password]').fill('SYNTHETIC-FAIL-CLOSED');await page.getByRole('button',{name:'保存设置'}).click();await expect(page.getByRole('alert')).toContainText('安全存储不可用');await shot('14-secure-storage-refusal');
   const exists=await application.evaluate(({app})=>process.getBuiltinModule('fs').existsSync(process.getBuiltinModule('path').join(app.getPath('userData'),'deepseek.bin')));assert.equal(exists,false);
-  await application.evaluate(({safeStorage})=>{safeStorage.isEncryptionAvailable=globalThis.__qaSecure;});await page.getByRole('button',{name:'关闭',exact:true}).click();await page.getByRole('button',{name:'重新读取'}).click();await saved();
+  await application.evaluate(({safeStorage})=>{safeStorage.isEncryptionAvailable=globalThis.__qaSecure;});await page.getByRole('button',{name:'关闭',exact:true}).click();await page.getByRole('button',{name:'关闭错误提示'}).click();
  });
  await check('close immediately after typing drains queued saves',async()=>{await page.getByLabel('主题内容').fill('退出前最后一次合成修改');await application.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].close());await application.close();application=null;await launch();assert.ok((await snapshot()).maps[0].document.nodes.some(n=>n.label==='退出前最后一次合成修改'));await page.locator('.outline').filter({hasText:'退出前最后一次合成修改'}).click();await expect(page.getByLabel('主题内容')).toHaveValue('退出前最后一次合成修改');await shot('15-close-save-restored');});
  await check('readable multi-change proposal shows paths, counts and zero-write rejection',async()=>{
@@ -111,6 +112,24 @@ try {
  await check('styled native export/import preserves style, geometry and undo history',async()=>{
   const before=(await snapshot()).maps;const backup=join(profile,'styled-backup.json');await picker('save',backup);await page.getByRole('button',{name:'导出完整备份'}).click();await saved();const exported=JSON.parse(await readFile(backup,'utf8'));assert.deepEqual(exported.maps,before);
   await picker('open',backup);await page.getByRole('button',{name:'导入备份为副本'}).click();await saved();const imported=(await snapshot()).maps.slice(before.length);assert.equal(imported.length,before.length);for(let i=0;i<before.length;i++){assert.deepEqual(imported[i].document,before[i].document);assert.deepEqual(imported[i].undo,before[i].undo);}
+ });
+ await bindLiveStore();
+ page=await verifyRepairs({page,snapshot,shot,check,
+  restart:async()=>{await application.close();application=null;await launch();await bindLiveStore();return page;},
+  diskFault:async enabled=>{await application.evaluate((_electron,enabled)=>{const store=globalThis.__qaStore;globalThis.__qaPersist??=store.persist;store.persist=enabled?async()=>{throw Object.assign(new Error('SYNTHETIC-secret disk failure'),{code:'ENOSPC'});}:globalThis.__qaPersist;},enabled);},
+  externalRename:async(id,title)=>{await application.evaluate(async(_electron,{id,title})=>{const store=globalThis.__qaStore,m=store.snapshot().maps.find(m=>m.id===id);await store.command({type:'rename',id,revision:m.revision,title});},{id,title});},
+  propose:async m=>{await application.evaluate(({BrowserWindow},m)=>{const store=globalThis.__qaStore;const p=store.propose(m.id,m.revision,{...m.document,nodes:m.document.nodes.map((n,i)=>i?n:{...n,label:n.label+'（合成预览）'})},'本地合成提案，不是真实模型');BrowserWindow.getAllWindows()[0].webContents.send('mind:agent-event',{type:'proposal',proposal:p});},m);},
+  aiMode:async mode=>{await application.evaluate(({app,ipcMain},mode)=>{
+   // Inspector-only test adapter: real request coordinator, local mock provider,
+   // synthetic ephemeral credentials; no production test switches or paid API.
+   if(mode==='restore'){for(const name of ['ask','cancel']){ipcMain.removeHandler('mind:'+name);ipcMain.handle('mind:'+name,globalThis.__qaOriginalHandlers[name]);}return;}
+   globalThis.__qaMode=mode;if(globalThis.__qaMockRequests)return;
+   const path=process.getBuiltinModule('path'),require=process.getBuiltinModule('module').createRequire(path.join(app.getAppPath(),'package.json'));
+   const {createPersonalAgentRequests}=require(path.join(app.getAppPath(),'src/main/personal-ai.mjs'));
+   const {MindError,userError}=require(path.join(app.getAppPath(),'src/main/personal-errors.mjs'));
+   const requests=createPersonalAgentRequests({store:globalThis.__qaStore,timeoutMs:2000,readConfig:async()=>globalThis.__qaMode==='missing'?{}:{model:'mock-local',apiKey:'SYNTHETIC-secret'},makeDirectory:async()=>path.join(app.getPath('userData'),'mock-agent-unused'),removeDirectory:async()=>{},emit:()=>{},runAgent:async({signal})=>{const mode=globalThis.__qaMode;if(mode==='cancel'||mode==='timeout')await new Promise((_resolve,reject)=>{if(signal.aborted)reject(new Error('SYNTHETIC-secret'));else signal.addEventListener('abort',()=>reject(new Error('SYNTHETIC-secret')),{once:true});});else throw Object.assign(new Error('Bearer SYNTHETIC-secret Traceback'),mode==='auth'?{status:401}:mode==='network'?{code:'ENOTFOUND'}:mode==='provider'?{status:503}:{});}});
+   globalThis.__qaMockRequests=requests;globalThis.__qaOriginalHandlers={};for(const name of ['ask','cancel']){globalThis.__qaOriginalHandlers[name]=ipcMain._invokeHandlers.get('mind:'+name);ipcMain.removeHandler('mind:'+name);ipcMain.handle('mind:'+name,async(_event,input)=>{try{return await requests[name](input);}catch(error){throw new MindError(userError(error).code);}});}
+  },mode);},
  });
  await check('no renderer exceptions' ,async()=>assert.deepEqual(errors,[]));
  await application.close();application=null;

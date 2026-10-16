@@ -30,5 +30,5 @@ export function Canvas({document,selected='',onSelect=()=>{},onMove=()=>{},shell
   }
   if(preview)g.zoomToFit({padding:12,maxScale:.55});
  },[document,selected,shell,preview,fontEpoch]);
- return <div className={preview?'mini-map':'canvas-stage'}><div className="canvas" ref={host}/>{!preview&&<button className="canvas-fit" onClick={()=>graph.current?.zoomToFit({padding:36,maxScale:1})}>适应画布</button>}</div>;
+ return <div className={preview?'mini-map':'canvas-stage'}><div className="canvas" ref={host} tabIndex={preview?-1:0} role={preview?undefined:"region"} aria-label={preview?undefined:"导图画布，Enter 添加同级，Tab 添加子级，Delete 删除主题"}/>{!preview&&<button className="canvas-fit" onClick={()=>graph.current?.zoomToFit({padding:36,maxScale:1})}>适应画布</button>}</div>;
 }

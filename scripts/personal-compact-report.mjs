@@ -1,7 +1,7 @@
 import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 export async function compactReport(output,report){
- const names={'21-warm-paper-type-detail.png':'温暖纸感 · 字体细节','22-dark-studio-type-detail.png':'深色工作室 · 字体细节','21-warm-paper.png':'温暖纸感','22-dark-studio.png':'深色工作室 · 同一导图','23-theme-library.png':'主题库 · 真实小导图预览','24-styled-ai-preview-mock.png':'中文 AI 前后预览 · mock 提案'};
+ const names={'31-draft-recovery.png':'F1 · 写入失败后的可恢复草稿','32-outline-full-text.png':'F8 · 紧凑大纲与全文查看','33-narrow-ai-reachable.png':'F6 · 640×700 窄窗与 AI 面板','34-safe-chinese-ai-error.png':'F3 / F10 · 安全中文错误与对应操作','21-warm-paper-type-detail.png':'温暖纸感 · 字体细节','22-dark-studio-type-detail.png':'深色工作室 · 字体细节','21-warm-paper.png':'温暖纸感','22-dark-studio.png':'深色工作室 · 同一导图','23-theme-library.png':'主题库 · 真实小导图预览','24-styled-ai-preview-mock.png':'中文 AI 前后预览 · mock 提案'};
  const esc=value=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const audit=await readFile(join(output,'..','size-comparison.json'),'utf8').then(JSON.parse).catch(()=>null);
  const size=audit?`<section><h2>实测体积（字节）</h2><pre>${esc(JSON.stringify(audit.metrics,null,2))}</pre><p>${esc(audit.method)}</p><details><summary>安装目录与主要依赖明细</summary><pre>${esc(JSON.stringify({before:audit.before.groups,after:audit.after.groups,packedDependencyBytesBefore:audit.before.asarPackages,packedDependencyBytesAfter:audit.after.asarPackages},null,2))}</pre></details></section>`:'';

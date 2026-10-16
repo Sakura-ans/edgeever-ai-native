@@ -18,19 +18,19 @@ test('first offline workspace, atomic save, restart, persistent undo/redo',async
 test('proposal and rejection do not write; approval applies once and can be undone',async()=>fixture(async(s,dir)=>{
  const m=s.snapshot().maps[0],before=await readFile(join(dir,'workspace.json'),'utf8');
  const p=s.propose(m.id,0,changed(m),'Mock proposal');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
- s.reject(p.id);await expect(s.approve(p.id)).rejects.toThrow('expired');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
- const p2=s.propose(m.id,0,changed(m),'Mock proposal');await s.approve(p2.id);await expect(s.approve(p2.id)).rejects.toThrow('expired');
+ s.reject(p.id);await expect(s.approve(p.id)).rejects.toThrow('PROPOSAL_EXPIRED');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
+ const p2=s.propose(m.id,0,changed(m),'Mock proposal');await s.approve(p2.id);await expect(s.approve(p2.id)).rejects.toThrow('PROPOSAL_EXPIRED');
  await s.command({type:'undo',id:m.id,revision:1});expect(s.snapshot().maps[0].document).toEqual(m.document);
 }));
 test('stale proposal and concurrent edits cannot overwrite newer work',async()=>fixture(async(s)=>{
  const m=s.snapshot().maps[0],p=s.propose(m.id,0,changed(m),'stale');
  const results=await Promise.allSettled([s.command({type:'rename',id:m.id,revision:0,title:'New'}),s.command({type:'save',id:m.id,revision:0,document:changed(m)})]);
- expect(results.map(r=>r.status)).toEqual(['fulfilled','rejected']);await expect(s.approve(p.id)).rejects.toThrow('Revision conflict');expect(s.snapshot().maps[0].title).toBe('New');
+ expect(results.map(r=>r.status)).toEqual(['fulfilled','rejected']);await expect(s.approve(p.id)).rejects.toThrow('CONFLICT');expect(s.snapshot().maps[0].title).toBe('New');
 }));
 test('backup import is validated and creates copies; delete does not corrupt other maps',async()=>fixture(async(s)=>{
  const original=s.snapshot();await s.command({type:'import',backup:original});let state=s.snapshot();expect(state.maps.length).toBe(2);expect(state.maps[1].id).not.toBe(state.maps[0].id);
  await s.command({type:'delete',id:state.maps[0].id,revision:0});expect(s.snapshot().maps.length).toBe(1);
- await expect(s.command({type:'import',backup:{version:99}})).rejects.toThrow('Invalid backup');expect(s.snapshot().maps.length).toBe(1);
+ await expect(s.command({type:'import',backup:{version:99}})).rejects.toThrow('INVALID_BACKUP');expect(s.snapshot().maps.length).toBe(1);
 }));
 test('invalid cyclic trees and unknown edges are rejected',async()=>fixture(async(s)=>{
  const doc=s.snapshot().maps[0].document;
@@ -38,7 +38,7 @@ test('invalid cyclic trees and unknown edges are rejected',async()=>fixture(asyn
  expect(()=>validateDocument({...doc,edges:[{id:'bad',source:'no',target:'no'}]})).toThrow();
 }));
 test('corrupt workspace is never silently replaced',async()=>fixture(async(_s,dir)=>{
- await writeFile(join(dir,'workspace.json'),'broken');await expect(new PersonalStore(dir).init()).rejects.toThrow('not overwritten');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe('broken');
+ await writeFile(join(dir,'workspace.json'),'broken');await expect(new PersonalStore(dir).init()).rejects.toThrow('WORKSPACE_READ');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe('broken');
 }));
 test('failed disk writes preserve memory and future saves; preview objects cannot change approval',async()=>fixture(async(s)=>{
  const m=s.snapshot().maps[0];const before=s.snapshot();const persist=s.persist.bind(s);s.persist=async()=>{throw new Error('Disk full');};
@@ -66,7 +66,7 @@ test('approved subtree removal and undo survive restart; newer edits invalidate 
  let m=s.snapshot().maps[0];const root=m.document.nodes[0];const doc={...m.document,nodes:[root,{...root,id:'child',parentId:root.id},{...root,id:'grand',parentId:'child'}],edges:[{id:'one',source:root.id,target:'child'},{id:'two',source:'child',target:'grand'}]};
  await s.command({type:'save',id:m.id,revision:0,document:doc});const p=s.propose(m.id,1,m.document,'Delete subtree');await s.approve(p.id);
  const restarted=new PersonalStore(dir);await restarted.init();await restarted.command({type:'undo',id:m.id,revision:2});const again=new PersonalStore(dir);await again.init();expect(again.snapshot().maps[0].document).toEqual(validateDocument(doc));
- m=again.snapshot().maps[0];const stale=again.propose(m.id,m.revision,changed(m),'stale');await again.command({type:'save',id:m.id,revision:m.revision,document:{...m.document,nodes:m.document.nodes.map(n=>({...n,label:'Local edit'}))}});const preserved=await readFile(join(dir,'workspace.json'),'utf8');await expect(again.approve(stale.id)).rejects.toThrow('Revision conflict');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(preserved);
+ m=again.snapshot().maps[0];const stale=again.propose(m.id,m.revision,changed(m),'stale');await again.command({type:'save',id:m.id,revision:m.revision,document:{...m.document,nodes:m.document.nodes.map(n=>({...n,label:'Local edit'}))}});const preserved=await readFile(join(dir,'workspace.json'),'utf8');await expect(again.approve(stale.id)).rejects.toThrow('CONFLICT');expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(preserved);
 }));
 
 import {DIAGRAM_THEMES,DIAGRAM_STRUCTURES} from '../../../../packages/shared/src/diagram.ts';
@@ -95,6 +95,6 @@ test('AI proposals cannot change or remove authored style, including unstyled le
 }));
 test('invalid preset imports fail atomically; missing legacy style remains missing',async()=>fixture(async(s,dir)=>{
  const m=s.snapshot().maps[0];expect(validateDocument(m.document).theme).toBeUndefined();const before=await readFile(join(dir,'workspace.json'),'utf8');
- for(const style of [{theme:'invalid'},{structure:'invalid'}])await expect(s.command({type:'save',id:m.id,revision:m.revision,document:{...m.document,...style}})).rejects.toThrow('Invalid');
+ for(const style of [{theme:'invalid'},{structure:'invalid'}])await expect(s.command({type:'save',id:m.id,revision:m.revision,document:{...m.document,...style}})).rejects.toThrow('INVALID_MAP');
  expect(await readFile(join(dir,'workspace.json'),'utf8')).toBe(before);
 }));

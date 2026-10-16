@@ -9,6 +9,7 @@ asarUnpack:
   - node_modules/@anthropic-ai/**
 files:
   - src/main/personal-*.mjs
+  - '!src/main/*.test.mjs'
   - src/preload/personal.cjs
   - package.json
 extraResources:

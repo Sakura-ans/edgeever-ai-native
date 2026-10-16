@@ -1,3 +1,4 @@
+import {MindError,userError,diagnostic} from './personal-errors.mjs';
 import { app, BrowserWindow, ipcMain, dialog, safeStorage, protocol, net } from 'electron';
 import { readFile, writeFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join, dirname, resolve, relative, isAbsolute } from 'node:path';
@@ -17,17 +18,19 @@ let window, store, agentRequests;
 const here = dirname(fileURLToPath(import.meta.url));
 const configPath = () => join(app.getPath('userData'),'deepseek.bin');
 const secure = () => {
-  if (!safeStorage.isEncryptionAvailable() || (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text')) throw new Error('OS secure credential storage is unavailable');
+  if (!safeStorage.isEncryptionAvailable() || (process.platform === 'linux' && safeStorage.getSelectedStorageBackend() === 'basic_text')) throw new MindError('SECURE_UNAVAILABLE');
 };
 const readConfig = async () => {
   secure();
   try { return JSON.parse(safeStorage.decryptString(await readFile(configPath()))); }
-  catch (e) { if (e.code === 'ENOENT') return {model:'deepseek-flash',apiKey:''}; throw new Error('Cannot decrypt saved credentials'); }
+  catch (e) { if (e.code === 'ENOENT') return {model:'deepseek-flash',apiKey:''};if(['EACCES','EPERM','EIO','ENOSPC'].includes(e.code))throw e; throw new MindError('DECRYPT'); }
 };
 function handle(name, fn) {
   ipcMain.handle(`mind:${name}`,async (event,...args) => {
-    if (event.sender !== window?.webContents || event.senderFrame !== window.webContents.mainFrame) throw new Error('Untrusted caller');
-    return fn(...args);
+    try {
+    if (event.sender !== window?.webContents || event.senderFrame !== window.webContents.mainFrame) throw new MindError('UNTRUSTED');
+    return await fn(...args);
+    }catch(error){console.warn(JSON.stringify(diagnostic(error,name)));throw new MindError(userError(error).code);}
   });
 }
 app.on('second-instance',() => { window?.show(); window?.focus(); });
@@ -47,16 +50,17 @@ app.whenReady().then(async () => {
     const selected = await dialog.showOpenDialog(window,{properties:['openFile'],filters:[{name:'Mind map backup',extensions:['json']}]});
     if (selected.canceled) return store.snapshot();
     const raw = await readFile(selected.filePaths[0],'utf8');
-    if (raw.length > 8_000_000) throw new Error('Backup too large');
-    return store.command({type:'import',backup:JSON.parse(raw)});
+    if (raw.length > 8_000_000) throw new MindError('TOO_LARGE');
+    let backup;try{backup=JSON.parse(raw);}catch{throw new MindError('INVALID_BACKUP');}
+    try{return await store.command({type:'import',backup});}catch(error){if(['INVALID_MAP','INVALID_PARENT','TITLE_REQUIRED','TITLE_LONG','INVALID_BACKUP'].includes(userError(error).code))throw new MindError('INVALID_BACKUP');throw error;}
   });
   handle('config',async () => { const c = await readConfig(); return {model:c.model,hasKey:!!c.apiKey}; });
   handle('save-config',async input => {
     secure();
-    if (!input || typeof input.model !== 'string' || !input.model.trim() || input.model.length > 150 || typeof input.apiKey !== 'string' || input.apiKey.length > 2000) throw new Error('Enter a model identifier and API key');
+    if (!input || typeof input.model !== 'string' || !input.model.trim() || input.model.length > 150 || typeof input.apiKey !== 'string' || input.apiKey.length > 2000) throw new MindError('CONFIG_INVALID');
     const previous = await readConfig();
     const apiKey = input.apiKey.trim() || previous.apiKey;
-    if (!apiKey) throw new Error('API key required');
+    if (!apiKey) throw new MindError('CONFIG_REQUIRED');
     await mkdir(app.getPath('userData'),{recursive:true});
     await writeFile(configPath(),safeStorage.encryptString(JSON.stringify({model:input.model.trim(),apiKey})),{mode:0o600});
     return true;
@@ -75,7 +79,7 @@ app.whenReady().then(async () => {
     const url = new URL(request.url);
     const file = resolve(packagedRoot,`.${decodeURIComponent(url.pathname)}`);
     const localPath = relative(packagedRoot,file);
-    if (url.host !== 'app' || localPath.startsWith('..') || isAbsolute(localPath)) return new Response('Forbidden',{status:403});
+    if (url.host !== 'app' || localPath.startsWith('..') || isAbsolute(localPath)) return new Response('禁止访问',{status:403});
     return net.fetch(pathToFileURL(file).toString());
   });
   window = new BrowserWindow({width:1400,height:900,minWidth:640,minHeight:650,title:'EdgeEver Mind',webPreferences:{preload:join(here,'../preload/personal.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
@@ -91,7 +95,7 @@ app.whenReady().then(async () => {
   window.webContents.on('will-navigate',event => event.preventDefault());
   window.webContents.session.setPermissionRequestHandler((_wc,_permission,callback) => callback(false));
   if (!app.isPackaged && process.env.EDGEEVER_MIND_DEV_URL) await window.loadURL(process.env.EDGEEVER_MIND_DEV_URL);
-  else await window.loadURL('edgeever-mind://app/personal.html');
-}).catch(async error => { await dialog.showMessageBox({type:'error',message:'EdgeEver Mind could not start',detail:error.message}); app.quit(); });
+  else await window.loadURL('edgeever-mind://app/personal.html').catch(()=>{throw new MindError('APP_LOAD');});
+}).catch(async error => { console.warn(JSON.stringify(diagnostic(error,'startup')));const safe=userError(error,'WORKSPACE_READ');await dialog.showMessageBox({type:'error',message:'EdgeEver Mind 无法启动',detail:`${safe.message}（错误代码：${safe.code}）`}); app.quit(); });
 app.on('window-all-closed',() => { agentRequests?.cancel(); app.quit(); });
 }

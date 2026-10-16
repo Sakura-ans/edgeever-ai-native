@@ -30,3 +30,5 @@ AI 默认模型标识 `deepseek-flash`，仅在用户配置并主动请求时调
 ## 验收与体积
 
 `.github/workflows/personal-mind.yml` 生成 Windows 安装包、真实截图与 HTML 报告。`scripts/personal-size-audit.mjs` 对同配置旧/新 NSIS exe 和安装目录逐文件字节求和，报告字体成本与差值；ZIP 附件大小不能代替安装包大小。Windows CI 桌面验收不代表全部物理设备。
+
+修复行为、复现检查与 IME/mock 边界见[十项修复对照表](personal-repairs.zh-CN.md)。
