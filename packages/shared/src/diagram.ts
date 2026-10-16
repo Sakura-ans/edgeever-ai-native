@@ -26,13 +26,13 @@ export type DiagramNodeShape =
   | "boundary";
 export type DiagramEdgeKind = "dependency" | "request" | "async" | "data";
 export const DIAGRAM_SELECTABLE_THEMES = [
-  "plain", "brand", "cosmos", "dune", "slate", "prism", "sunrise", "marine", "blossom", "mint", "macaron",
+  "plain", "brand", "cosmos", "dune", "slate", "prism", "sunrise", "marine", "blossom", "mint", "macaron", "parchment", "studio",
 ] as const;
 export const DIAGRAM_DEFAULT_THEME = "plain" as const;
 export const DIAGRAM_THEMES = [
   "plain", "brand", "ocean", "ink", "classic", "sky", "sunset", "violet", "rose", "sand", "slate", "aurora", "mono",
   "sun", "wa", "island", "mint", "cosmos", "tea", "naive", "macaron", "paper",
-  "dune", "prism", "sunrise", "marine", "blossom",
+  "dune", "prism", "sunrise", "marine", "blossom", "parchment", "studio",
 ] as const;
 export type DiagramTheme = (typeof DIAGRAM_THEMES)[number];
 export const DIAGRAM_SELECTABLE_STRUCTURES = [

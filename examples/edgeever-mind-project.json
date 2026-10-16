@@ -1,0 +1,435 @@
+{
+  "version": 1,
+  "revision": 0,
+  "maps": [
+    {
+      "id": "edgeever-mind-project-example",
+      "title": "EdgeEver Mind 项目导图（程序生成）",
+      "revision": 0,
+      "document": {
+        "schemaVersion": 1,
+        "kind": "mind-map",
+        "nodes": [
+          {
+            "id": "project",
+            "label": "EdgeEver Mind · 项目导图",
+            "x": 20,
+            "y": 480,
+            "width": 240,
+            "height": 60,
+            "shape": "topic"
+          },
+          {
+            "id": "group-0",
+            "label": "产品目标",
+            "x": 310,
+            "y": 24,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-0-0",
+            "label": "已定：个人 Windows 思维导图",
+            "x": 560,
+            "y": 0,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-0"
+          },
+          {
+            "id": "group-0-1",
+            "label": "已定：独立定制，不自动合并上游",
+            "x": 560,
+            "y": 52,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-0"
+          },
+          {
+            "id": "group-1",
+            "label": "当前架构",
+            "x": 310,
+            "y": 144,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-1-0",
+            "label": "已实现：Electron + React + X6",
+            "x": 560,
+            "y": 120,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-1"
+          },
+          {
+            "id": "group-1-1",
+            "label": "已实现：独立本地 JSON 工作区",
+            "x": 560,
+            "y": 172,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-1"
+          },
+          {
+            "id": "group-2",
+            "label": "离线工作台",
+            "x": 310,
+            "y": 264,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-2-0",
+            "label": "已实现：免登录、画布与大纲",
+            "x": 560,
+            "y": 240,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-2"
+          },
+          {
+            "id": "group-2-1",
+            "label": "已实现：自动保存、备份导入导出",
+            "x": 560,
+            "y": 292,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-2"
+          },
+          {
+            "id": "group-3",
+            "label": "DeepSeek 与 SDK",
+            "x": 310,
+            "y": 384,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-3-0",
+            "label": "已接入：Claude Agent SDK 工具桥",
+            "x": 560,
+            "y": 360,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-3"
+          },
+          {
+            "id": "group-3-1",
+            "label": "待验：deepseek-flash 真实请求（本轮未调用）",
+            "x": 560,
+            "y": 412,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-3"
+          },
+          {
+            "id": "group-4",
+            "label": "中文修改预览",
+            "x": 310,
+            "y": 504,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-4-0",
+            "label": "已实现：新增 / 删除 / 重命名 / 移动",
+            "x": 560,
+            "y": 480,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-4"
+          },
+          {
+            "id": "group-4-1",
+            "label": "已实现：节点路径与前后对照",
+            "x": 560,
+            "y": 532,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-4"
+          },
+          {
+            "id": "group-5",
+            "label": "安全与确认",
+            "x": 310,
+            "y": 624,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-5-0",
+            "label": "已实现：提案确认后才能写入",
+            "x": 560,
+            "y": 600,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-5"
+          },
+          {
+            "id": "group-5-1",
+            "label": "已实现：版本冲突、拒绝零写入、撤销",
+            "x": 560,
+            "y": 652,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-5"
+          },
+          {
+            "id": "group-6",
+            "label": "测试与证据",
+            "x": 310,
+            "y": 744,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-6-0",
+            "label": "已覆盖：mock、安全边界与原生界面",
+            "x": 560,
+            "y": 720,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-6"
+          },
+          {
+            "id": "group-6-1",
+            "label": "待验：真实服务流式输出与工具兼容",
+            "x": 560,
+            "y": 772,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-6"
+          },
+          {
+            "id": "group-7",
+            "label": "交付与待办",
+            "x": 310,
+            "y": 864,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-7-0",
+            "label": "已提供：功能分支与 Windows CI 安装包",
+            "x": 560,
+            "y": 840,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-7"
+          },
+          {
+            "id": "group-7-1",
+            "label": "待验：用户 Windows 实机体验与跨版本升级",
+            "x": 560,
+            "y": 892,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-7"
+          },
+          {
+            "id": "group-8",
+            "label": "此导图的来源",
+            "x": 310,
+            "y": 984,
+            "width": 200,
+            "height": 48,
+            "shape": "topic",
+            "parentId": "project"
+          },
+          {
+            "id": "group-8-0",
+            "label": "程序生成，可继续编辑与导入",
+            "x": 560,
+            "y": 960,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-8"
+          },
+          {
+            "id": "group-8-1",
+            "label": "非 DeepSeek 生成，不含真实密钥或用户内容",
+            "x": 560,
+            "y": 1012,
+            "width": 390,
+            "height": 44,
+            "shape": "topic",
+            "parentId": "group-8"
+          }
+        ],
+        "edges": [
+          {
+            "id": "edge-group-0",
+            "source": "project",
+            "target": "group-0"
+          },
+          {
+            "id": "edge-group-0-0",
+            "source": "group-0",
+            "target": "group-0-0"
+          },
+          {
+            "id": "edge-group-0-1",
+            "source": "group-0",
+            "target": "group-0-1"
+          },
+          {
+            "id": "edge-group-1",
+            "source": "project",
+            "target": "group-1"
+          },
+          {
+            "id": "edge-group-1-0",
+            "source": "group-1",
+            "target": "group-1-0"
+          },
+          {
+            "id": "edge-group-1-1",
+            "source": "group-1",
+            "target": "group-1-1"
+          },
+          {
+            "id": "edge-group-2",
+            "source": "project",
+            "target": "group-2"
+          },
+          {
+            "id": "edge-group-2-0",
+            "source": "group-2",
+            "target": "group-2-0"
+          },
+          {
+            "id": "edge-group-2-1",
+            "source": "group-2",
+            "target": "group-2-1"
+          },
+          {
+            "id": "edge-group-3",
+            "source": "project",
+            "target": "group-3"
+          },
+          {
+            "id": "edge-group-3-0",
+            "source": "group-3",
+            "target": "group-3-0"
+          },
+          {
+            "id": "edge-group-3-1",
+            "source": "group-3",
+            "target": "group-3-1"
+          },
+          {
+            "id": "edge-group-4",
+            "source": "project",
+            "target": "group-4"
+          },
+          {
+            "id": "edge-group-4-0",
+            "source": "group-4",
+            "target": "group-4-0"
+          },
+          {
+            "id": "edge-group-4-1",
+            "source": "group-4",
+            "target": "group-4-1"
+          },
+          {
+            "id": "edge-group-5",
+            "source": "project",
+            "target": "group-5"
+          },
+          {
+            "id": "edge-group-5-0",
+            "source": "group-5",
+            "target": "group-5-0"
+          },
+          {
+            "id": "edge-group-5-1",
+            "source": "group-5",
+            "target": "group-5-1"
+          },
+          {
+            "id": "edge-group-6",
+            "source": "project",
+            "target": "group-6"
+          },
+          {
+            "id": "edge-group-6-0",
+            "source": "group-6",
+            "target": "group-6-0"
+          },
+          {
+            "id": "edge-group-6-1",
+            "source": "group-6",
+            "target": "group-6-1"
+          },
+          {
+            "id": "edge-group-7",
+            "source": "project",
+            "target": "group-7"
+          },
+          {
+            "id": "edge-group-7-0",
+            "source": "group-7",
+            "target": "group-7-0"
+          },
+          {
+            "id": "edge-group-7-1",
+            "source": "group-7",
+            "target": "group-7-1"
+          },
+          {
+            "id": "edge-group-8",
+            "source": "project",
+            "target": "group-8"
+          },
+          {
+            "id": "edge-group-8-0",
+            "source": "group-8",
+            "target": "group-8-0"
+          },
+          {
+            "id": "edge-group-8-1",
+            "source": "group-8",
+            "target": "group-8-1"
+          }
+        ]
+      },
+      "undo": [],
+      "redo": []
+    }
+  ]
+}

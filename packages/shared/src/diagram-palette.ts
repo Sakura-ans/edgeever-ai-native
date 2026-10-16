@@ -18,9 +18,11 @@ type DiagramThemeDefinition = {
 };
 
 export const DIAGRAM_THEME_DEFINITIONS: Record<
-  "plain" | "brand" | "cosmos" | "dune" | "slate" | "prism" | "sunrise" | "marine" | "blossom" | "mint" | "macaron",
+  "plain" | "brand" | "cosmos" | "dune" | "slate" | "prism" | "sunrise" | "marine" | "blossom" | "mint" | "macaron" | "parchment" | "studio",
   DiagramThemeDefinition
 > = {
+  parchment: {id:"parchment", group:"classic", colors:["#71866A","#B66A4B","#A18B67","#6E8C88","#9D7880","#8D805E"], accent:"#71866A"},
+  studio: {id:"studio", group:"classic", colors:["#687CD1","#8872BE","#4E8B9E","#7987A5","#8B79A0","#5279AA"], accent:"#687CD1"},
   plain: {
     id: "plain",
     group: "classic",
@@ -90,7 +92,7 @@ export const DIAGRAM_THEME_DEFINITIONS: Record<
 };
 
 export const DIAGRAM_COLOR_STRIPS: Record<
-  "plain" | "brand" | "cosmos" | "dune" | "slate" | "prism" | "sunrise" | "marine" | "blossom" | "mint" | "macaron",
+  "plain" | "brand" | "cosmos" | "dune" | "slate" | "prism" | "sunrise" | "marine" | "blossom" | "mint" | "macaron" | "parchment" | "studio",
   DiagramColorStrip
 > = Object.fromEntries(
   Object.entries(DIAGRAM_THEME_DEFINITIONS).map(([id, def]) => [
@@ -98,7 +100,7 @@ export const DIAGRAM_COLOR_STRIPS: Record<
     { id: def.id, group: def.group, colors: def.colors },
   ]),
 ) as Record<
-  "plain" | "brand" | "cosmos" | "dune" | "slate" | "prism" | "sunrise" | "marine" | "blossom" | "mint" | "macaron",
+  "plain" | "brand" | "cosmos" | "dune" | "slate" | "prism" | "sunrise" | "marine" | "blossom" | "mint" | "macaron" | "parchment" | "studio",
   DiagramColorStrip
 >;
 

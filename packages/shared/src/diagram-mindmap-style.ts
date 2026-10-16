@@ -31,7 +31,7 @@ export const MIND_MAP_CONNECTOR_NAME = "edgeever-mindmap";
 export const MIND_MAP_HORIZONTAL_GAP = 72;
 export const MIND_MAP_VERTICAL_GAP = 20;
 export const MIND_MAP_LABEL_FONT =
-  'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+  '"Noto Sans SC Variable", "Microsoft YaHei", "PingFang SC", system-ui, sans-serif';
 export const MIND_MAP_EDGE_LABEL_FONT_SIZE = 10;
 export const MIND_MAP_EDGE_LABEL_LINE_HEIGHT = 14;
 

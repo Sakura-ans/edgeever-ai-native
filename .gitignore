@@ -1,58 +1,13 @@
-.DS_Store
+node_modules/
+dist/
+release/
+artifacts/
+coverage/
+*.log
 .env
 .env.*
-!.env.example
-!.env.local.example
-!.env.android.local.example
-!.env.local-dev.example
-
-node_modules/
 __pycache__/
-*.py[cod]
-.idea/
-dist/
-!packages/plugin-api/dist/
-!packages/plugin-api/dist/**
-build/
-apps/extension/dist-firefox/
-apps/extension/web-ext-artifacts/
-# Built store packages. Listing screenshots and promo tiles in this folder stay tracked.
-apps/extension/store-assets/*.zip
-release/desktop/
-coverage/
-playwright-report/
-test-results/
-blob-report/
-
-# Rust sidecar build artifacts.
-target/
-
-.wrangler/
-.wrangler.generated-migrations/
-.wrangler.generated*.toml
-.wrangler.deployment-targets.json
-.dev.vars
-wrangler.local.toml
-
-*.log
-
-# Android signing material must never be committed.
-*.jks
-*.keystore
-*.p12
-credentials.json
-*-key.pem
-
-# Local HyperFrames video workspace.
-/videos/edgeever-promo/
-
-# Local App Review crash dumps / image self-test screenshots.
-.tmp-app-review-crashes/
-
-# Generated Expo iOS tree; store iOS is apps/ios.
-apps/mobile/ios/
-
-# Local brand concept and research drafts.
-/assets/brand/edgeever-concept-13.png
-/docs/notion-ai-feature-landscape.en-US.md
-/docs/notion-ai-feature-landscape.zh-CN.md
+*.pyc
+.DS_Store
+apps/web/public/fonts/
+apps/web/public/licenses/

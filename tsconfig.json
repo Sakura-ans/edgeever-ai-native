@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "allowImportingTsExtensions": true,
@@ -11,18 +15,15 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "ignoreDeprecations": "6.0",
-    "types": ["@cloudflare/workers-types", "node"],
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["apps/web/src/*"]
-    }
+    "types": [
+      "node",
+      "vite/client"
+    ]
   },
   "include": [
     "apps/**/*.ts",
     "apps/**/*.tsx",
     "packages/**/*.ts",
     "packages/**/*.tsx"
-  ],
-  "exclude": ["apps/mobile", "apps/ios/EditorSource"]
+  ]
 }

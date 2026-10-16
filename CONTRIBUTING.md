@@ -1,84 +1,32 @@
-# Contributing to EdgeEver
+# EdgeEver Mind
 
-[简体中文](CONTRIBUTING.zh-CN.md) | English
+An offline, login-free personal mind-map workspace built on EdgeEver's shared diagram engine. Local JSON storage, paper and studio application shells, all 11 legacy palettes and 13 structures, plus parchment/studio palettes. Shells never replace map styling or geometry.
 
-Thank you for contributing to EdgeEver. A Fork used for Cloudflare deployment can also be used for code contributions, but deployment and development must use different branches.
+## Development
 
-## Keep the deployment branch separate
-
-If your Fork is used to deploy EdgeEver:
-
-- Treat the Fork's `main` as a deployment-only branch managed by **Update deployed EdgeEver**.
-- Do not develop features directly on that `main` branch.
-- Do not use GitHub **Sync fork** to update the deployment `main` during routine development or deployment updates.
-- Create each contribution branch directly from the official repository's latest `upstream/main`.
-
-The deployment workflow only updates the Fork's `main`. It does not modify your contribution branches.
-
-## Create a contribution branch
-
-Clone your Fork and add the official repository as `upstream`:
+Use the Bun version pinned in package.json:
 
 ```sh
-git clone https://github.com/<your-account>/edgeever.git
-cd edgeever
-git remote add upstream https://github.com/tianma-if/edgeever.git
-git fetch upstream
-```
-
-Create a new branch from the official latest `main`, not from the deployment branch:
-
-```sh
-git switch -c feat/short-description upstream/main
-```
-
-Make and commit your changes, then push the contribution branch to your Fork:
-
-```sh
-git push -u origin feat/short-description
-```
-
-Open a Pull Request from:
-
-```text
-<your-account>/edgeever:feat/short-description
-    -> tianma-if/edgeever:main
-```
-
-Your Fork's `main` does not need to match the official `main` for this Pull Request. GitHub uses the contribution branch as the Pull Request source.
-
-## Synchronize an in-progress contribution
-
-When the official repository changes, update the contribution branch without touching the deployment `main`:
-
-```sh
-git fetch upstream
-git switch feat/short-description
-git rebase upstream/main
-```
-
-If the branch was already pushed, update it safely with:
-
-```sh
-git push --force-with-lease origin feat/short-description
-```
-
-Resolve any conflicts on the contribution branch. Do not resolve them by synchronizing the deployment `main`.
-
-## Verify your changes
-
-Install dependencies and run the checks relevant to your change. The core validation commands are:
-
-```sh
-bun install
+bun install --frozen-lockfile
 bun run test
 bun run typecheck
-bun run typecheck:mobile
 bun run build:web
+bun run dev:web
+bun run dev:desktop
 ```
 
-Platform-specific changes may require additional checks.
+Build Windows NSIS with `bun run build:desktop`; outputs are under `release/mind`. Feature-branch CI installs the previous NSIS package, upgrades the same installation, and verifies a fresh offline profile, persistence, history, imports/exports and mock AI. It does not deploy or publish releases.
 
-## Customized deployments
+## Scope and compatibility
 
-Keeping personal product changes permanently on the deployed `main` is a customized deployment, not the normal contribution workflow. Customized deployments must opt in with `EDGE_EVER_PRESERVE_FORK_CHANGES=true` and maintain their own upstream merges. You do not need this setting when contributing through a separate branch.
+The retained workspaces are the personal renderer, Electron local storage/security/Claude Agent SDK, and shared diagram model/layout. Account sync, server, notes/media editors, marketing site, mobile apps and browser extensions were removed from this personal branch. Git history preserves the original source. Existing JSON workspaces remain compatible; never delete user data during an upgrade.
+
+The default AI model identifier is `deepseek-flash`. Only an explicitly configured, user-initiated request may call a provider. Tests use mocks and synthetic credentials, with zero paid calls. Readable Chinese previews show additions, removals, renames and moves; approval writes changes, while AI cannot replace existing diagram style.
+
+## Fonts and licensing
+
+Pinned `@fontsource-variable/noto-sans-sc@5.3.0` is self-hosted with all 101 unchanged WOFF2 partitions referenced by upstream index.css. No application-text subsetting, online fonts or CDN. Weights 100–900 are available; system fallback handles characters outside the font repertoire. OFL-1.1 font licensing, project AGPL-3.0 and third-party notices ship with the app; see LICENSE and NOTICE.
+
+## Evidence and size accounting
+
+`.github/workflows/personal-mind.yml` produces the installer, real Windows screenshots and HTML report. `scripts/personal-size-audit.mjs` compares actual NSIS executable bytes and recursive installed-file byte sums under matching packaging settings, including font cost. Artifact ZIP size is a different metric. CI desktop acceptance does not certify every physical device.

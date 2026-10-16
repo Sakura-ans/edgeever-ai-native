@@ -1,29 +1,22 @@
 {
   "name": "@edgeever/desktop",
   "version": "1.119.0",
-  "desktopName": "EdgeEver",
+  "desktopName": "EdgeEver Mind",
   "private": true,
-  "description": "Native EdgeEver desktop client",
+  "description": "Offline personal mind-map workspace",
   "author": "EdgeEver contributors",
   "type": "module",
-  "main": "src/main/index.mjs",
+  "main": "src/main/personal-main.mjs",
   "scripts": {
-    "dev": "electron .",
-    "start": "electron .",
-    "dist": "electron-builder --config electron-builder.yml",
-    "verify-origin-migration": "electron ../../scripts/renderer-origin-verifier"
+    "dev:mind": "electron src/main/personal-main.mjs",
+    "dist:mind": "electron-builder --config electron-builder.mind.yml --publish never"
   },
   "devDependencies": {
     "electron": "44.7.0",
     "electron-builder": "^26.0.12"
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "^1.5.1",
-    "@edgeever/public-network": "workspace:*",
-    "croner": "^10.0.1",
-    "electron-updater": "^6.6.2",
-    "fflate": "0.8.3",
-    "npm": "11.21.0",
+    "@anthropic-ai/claude-agent-sdk": "0.3.300",
     "zod": "4.6.6"
   }
 }

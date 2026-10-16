@@ -1,0 +1,32 @@
+appId: io.sakura.edgeever.mind
+productName: EdgeEver Mind
+executableName: EdgeEverMind
+extraMetadata:
+  main: src/main/personal-main.mjs
+publish: null
+asar: true
+asarUnpack:
+  - node_modules/@anthropic-ai/**
+files:
+  - src/main/personal-*.mjs
+  - '!src/main/*.test.mjs'
+  - src/preload/personal.cjs
+  - package.json
+extraResources:
+  - from: ../web/dist
+    to: web
+    filter:
+      - '**/*'
+directories:
+  output: ../../release/mind
+icon: assets/icon.png
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: EdgeEver-Mind-${version}-windows-${arch}.${ext}
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  deleteAppDataOnUninstall: false
