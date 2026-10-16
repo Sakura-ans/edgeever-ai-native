@@ -1,7 +1,9 @@
 name: Personal Mind verification
 on:
   push:
-    branches: ['feat/personal-mindmap-offline']
+    branches: ['feat/personal-mindmap-offline', 'main']
+  pull_request:
+    branches: ['main']
   workflow_dispatch:
 permissions:
   contents: read
