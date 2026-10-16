@@ -55,10 +55,10 @@ try {
   await page.getByRole('button',{name:'删除主题',exact:true}).click();await saved();assert.equal((await snapshot()).maps[0].document.nodes.length,1);await page.getByRole('button',{name:'撤销',exact:true}).click();await saved();assert.deepEqual((await snapshot()).maps[0].document,before);
  });
  await check('export/import round trip, picker cancellation, invalid import does not overwrite',async()=>{
-  const backup=join(profile,'backup.json');await picker('save',backup);await page.getByRole('button',{name:'导出完整备份'}).click();await saved();assert.deepEqual(JSON.parse(await readFile(backup,'utf8')),(await snapshot()));
+  const backup=join(profile,'backup.json');await picker('save',backup);await page.getByRole('button',{name:'导出完整备份'}).click();await expect(page.getByRole('note')).toContainText('已导出已保存的工作区');assert.deepEqual(JSON.parse(await readFile(backup,'utf8')),(await snapshot()));
   const before=await disk();await picker('open',backup,true);await page.getByRole('button',{name:'导入备份为副本'}).click();await saved();assert.equal(await disk(),before);
   await picker('open',backup);await page.getByRole('button',{name:'导入备份为副本'}).click();await saved();assert.equal((await snapshot()).maps.length,2);await shot('04-backup-import-copies');
-  const broken=join(profile,'broken.json');await writeFile(broken,'not-json');const preserved=await disk();await picker('open',broken);await page.getByRole('button',{name:'导入备份为副本'}).click();await expect(page.getByRole('alert')).toBeVisible();assert.equal(await disk(),preserved);await shot('05-invalid-backup-protected');await page.getByRole('button',{name:'重新读取'}).click();await saved();
+  const broken=join(profile,'broken.json');await writeFile(broken,'not-json');const preserved=await disk();await picker('open',broken);await page.getByRole('button',{name:'导入备份为副本'}).click();await expect(page.getByRole('alert')).toBeVisible();assert.equal(await disk(),preserved);await expect(page.getByRole('alert')).toContainText('INVALID_BACKUP');await shot('05-invalid-backup-protected');await page.getByRole('button',{name:'关闭错误提示'}).click();
  });
  await check('delete cancellation preserves map; confirmed delete removes selected map',async()=>{
   const before=await disk();allowDialog=false;await page.getByRole('button',{name:'删除导图',exact:true}).click();assert.equal(await disk(),before);allowDialog=true;
@@ -110,13 +110,13 @@ try {
   await page.getByRole('button',{name:'EdgeEver Mind 项目导图（程序生成）',exact:true}).click();await expect(page.locator('.canvas .x6-node:visible')).toHaveCount(28);await page.getByRole('button',{name:'适应画布'}).click();await shot('26-native-high-dpi');
  });
  await check('styled native export/import preserves style, geometry and undo history',async()=>{
-  const before=(await snapshot()).maps;const backup=join(profile,'styled-backup.json');await picker('save',backup);await page.getByRole('button',{name:'导出完整备份'}).click();await saved();const exported=JSON.parse(await readFile(backup,'utf8'));assert.deepEqual(exported.maps,before);
+  const before=(await snapshot()).maps;const backup=join(profile,'styled-backup.json');await picker('save',backup);await page.getByRole('button',{name:'导出完整备份'}).click();await expect(page.getByRole('note')).toContainText('已导出已保存的工作区');const exported=JSON.parse(await readFile(backup,'utf8'));assert.deepEqual(exported.maps,before);
   await picker('open',backup);await page.getByRole('button',{name:'导入备份为副本'}).click();await saved();const imported=(await snapshot()).maps.slice(before.length);assert.equal(imported.length,before.length);for(let i=0;i<before.length;i++){assert.deepEqual(imported[i].document,before[i].document);assert.deepEqual(imported[i].undo,before[i].undo);}
  });
  await bindLiveStore();
  page=await verifyRepairs({page,snapshot,shot,check,
   restart:async()=>{await application.close();application=null;await launch();await bindLiveStore();return page;},
-  diskFault:async enabled=>{await application.evaluate((_electron,enabled)=>{const store=globalThis.__qaStore;globalThis.__qaPersist??=store.persist;store.persist=enabled?async()=>{throw Object.assign(new Error('SYNTHETIC-secret disk failure'),{code:'ENOSPC'});}:globalThis.__qaPersist;},enabled);},
+  diskFault:async enabled=>{await application.evaluate((_electron,enabled)=>{const store=globalThis.__qaStore;if(enabled==='release'){globalThis.__qaReleased=true;globalThis.__qaRelease?.();return;}globalThis.__qaReleased=false;globalThis.__qaPersist??=store.persist;let calls=0;store.persist=enabled==='queued'?async function(...args){calls++;if(calls===1&&!globalThis.__qaReleased)await new Promise(r=>{globalThis.__qaRelease=r;});if(calls===5)throw Object.assign(new Error('SYNTHETIC-secret'),{code:'ENOSPC'});return globalThis.__qaPersist.apply(this,args);}:enabled?async()=>{throw Object.assign(new Error('SYNTHETIC-secret disk failure'),{code:'ENOSPC'});}:globalThis.__qaPersist;},enabled);},
   externalRename:async(id,title)=>{await application.evaluate(async(_electron,{id,title})=>{const store=globalThis.__qaStore,m=store.snapshot().maps.find(m=>m.id===id);await store.command({type:'rename',id,revision:m.revision,title});},{id,title});},
   propose:async m=>{await application.evaluate(({BrowserWindow},m)=>{const store=globalThis.__qaStore;const p=store.propose(m.id,m.revision,{...m.document,nodes:m.document.nodes.map((n,i)=>i?n:{...n,label:n.label+'（合成预览）'})},'本地合成提案，不是真实模型');BrowserWindow.getAllWindows()[0].webContents.send('mind:agent-event',{type:'proposal',proposal:p});},m);},
   aiMode:async mode=>{await application.evaluate(({app,ipcMain},mode)=>{

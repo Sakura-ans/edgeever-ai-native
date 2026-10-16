@@ -22,9 +22,9 @@ interface MindBridge {
 }
 declare global { interface Window {edgeeverMind?:MindBridge} }
 const bridge = window.edgeeverMind;
-type Draft={title?:string;labels:Record<string,string>};
+type Draft={title?:string;labels:Record<string,string>;titleToken?:string;labelTokens?:Record<string,string>};
 type Drafts=Record<string,Draft>;
-function readDrafts():Drafts {try{const value:unknown=JSON.parse(localStorage.getItem('mind-drafts-v1')??'{}');if(!value||typeof value!=='object'||Array.isArray(value))return {};const result:Drafts={};for(const [id,item] of Object.entries(value)){const d=item as Draft;if(!id||!d||typeof d!=='object'||!d.labels||typeof d.labels!=='object'||Array.isArray(d.labels)||Object.values(d.labels).some(v=>typeof v!=='string')||(d.title!==undefined&&typeof d.title!=='string'))continue;Object.defineProperty(result,id,{value:{...d,labels:{...d.labels}},enumerable:true,writable:true,configurable:true});}return result;}catch{return {};}}
+function readDrafts():Drafts {try{const value:unknown=JSON.parse(localStorage.getItem('mind-drafts-v1')??'{}');if(!value||typeof value!=='object'||Array.isArray(value))return {};const result:Drafts={};for(const [id,item] of Object.entries(value)){const d=item as Draft;if(!id||!d||typeof d!=='object'||!d.labels||typeof d.labels!=='object'||Array.isArray(d.labels)||Object.values(d.labels).some(v=>typeof v!=='string')||(d.title!==undefined&&typeof d.title!=='string'))continue;Object.defineProperty(result,id,{value:{...d,labels:{...d.labels},titleToken:d.title===undefined?undefined:crypto.randomUUID(),labelTokens:Object.fromEntries(Object.keys(d.labels).map(id=>[id,crypto.randomUUID()]))},enumerable:true,writable:true,configurable:true});}return result;}catch{return {};}}
 const composingKey=(event:{isComposing?:boolean;keyCode?:number},active:boolean)=>active||event.isComposing||event.keyCode===229;
 
 
@@ -46,6 +46,7 @@ function App() {
   const [active,setActive] = useState(''), [selected,setSelected] = useState('');
   const [busy,setBusy] = useState(false), [error,setError] = useState<(PublicError & {scope:string})|null>(null), [status,setStatus] = useState('加载本地工作区…');
   const [newTitle,setNewTitle] = useState<string|null>(null);
+  const [activity,setActivity]=useState('');
   const [label,setLabel] = useState(''), [mapTitle,setMapTitle] = useState('');
   const [settings,setSettings] = useState(false), [model,setModel] = useState('deepseek-flash'), [key,setKey] = useState(''), [hasKey,setHasKey] = useState(false);
   const [prompt,setPrompt] = useState(''), [answer,setAnswer] = useState(''), [running,setRunning] = useState(false), [proposals,setProposals] = useState<Proposal[]>([]);
@@ -58,8 +59,8 @@ function App() {
   const endGroup=()=>{editGroup.current=null;};
   const fail=(value:unknown,scope='write')=>setError({...userError(value),scope});
   function putDrafts(next:Drafts){draftRef.current=next;setDrafts(next);try{localStorage.setItem('mind-drafts-v1',JSON.stringify(next));draftDurable.current=true;}catch{draftDurable.current=false;}}
-  function patchDraft(id:string,patch:Partial<Draft>){const old=draftRef.current[id]??{labels:{}};putDrafts({...draftRef.current,[id]:{...old,...patch,labels:{...old.labels,...patch.labels}}});setDraftEditing(true);}
-  function acknowledge(id:string,patch:Partial<Draft>){const old=draftRef.current[id];if(!old)return;const next={...old,labels:{...old.labels}};if(patch.title!==undefined&&old.title===patch.title)delete next.title;for(const [node,value] of Object.entries(patch.labels??{}))if(next.labels[node]===value)delete next.labels[node];const all={...draftRef.current};if(next.title===undefined&&!Object.keys(next.labels).length)delete all[id];else all[id]=next;putDrafts(all);}
+  function patchDraft(id:string,patch:Partial<Draft>){const old=draftRef.current[id]??{labels:{}};const next:Draft={...old,...patch,labels:{...old.labels,...patch.labels},labelTokens:{...old.labelTokens,...Object.fromEntries(Object.keys(patch.labels??{}).map(id=>[id,crypto.randomUUID()]))},...(patch.title===undefined?{}:{titleToken:crypto.randomUUID()})};putDrafts({...draftRef.current,[id]:next});setDraftEditing(true);return next;}
+  function acknowledge(id:string,patch:Partial<Draft>,sent:Draft){const old=draftRef.current[id];if(!old)return;const next={...old,labels:{...old.labels},labelTokens:{...old.labelTokens}};if(patch.title!==undefined&&old.titleToken===sent.titleToken){delete next.title;delete next.titleToken;}for(const node of Object.keys(patch.labels??{}))if(old.labelTokens?.[node]===sent.labelTokens?.[node]){delete next.labels[node];delete next.labelTokens[node];}const all={...draftRef.current};if(next.title===undefined&&!Object.keys(next.labels).length)delete all[id];else all[id]=next;putDrafts(all);}
   const draftCount=Object.keys(drafts).length;
 
   const latest = useRef(workspace);
@@ -80,13 +81,14 @@ function App() {
   async function perform(action:()=>Promise<unknown>,scope='write') {
     const operation = pending.current.then(async () => {
       if(scope==='write'&&blocked.current){fail(new MindError(Object.keys(draftRef.current).length?'DRAFT_PENDING':'WRITE_BLOCKED'));return false;}
-      setBusy(true);setError(null);if(scope==='write')setStatus('正在保存…');
+      setBusy(true);setError(null);if(scope==='write'||scope==='import'){setActivity('');setStatus(scope==='import'?'正在导入备份…':'正在保存…');}else if(scope==='export')setActivity('正在导出已保存内容…');
       try {
         const result=await action();
         if(result&&typeof result==='object'&&'maps' in result){latest.current=result as Workspace;setWorkspace(result as Workspace);}
-        if(scope==='write')setStatus(Object.keys(draftRef.current).length?'有未保存草稿':'已保存到本机');
+        if(scope==='write'||scope==='import')setStatus(Object.keys(draftRef.current).length?'有未保存草稿':'已保存到本机');
+        if(scope==='export')setActivity(result===false?'已取消导出':'已导出已保存的工作区（不含未提交草稿）');
         return true;
-      }catch(e){fail(e,scope);if(scope==='write'){blocked.current=true;setStatus(Object.keys(draftRef.current).length?'未保存 · 草稿已保留':'操作未完成 · 本机内容未改变');}return false;}
+      }catch(e){fail(e,scope);if(scope==='export')setActivity('导出未完成');if(scope==='import')setStatus('导入未完成 · 原有内容未改变');if(scope==='write'){blocked.current=true;setStatus(Object.keys(draftRef.current).length?'未保存 · 草稿已保留':'操作未完成 · 本机内容未改变');}return false;}
       finally{setBusy(false);}
     });pending.current=operation;return operation;
   }
@@ -96,15 +98,15 @@ function App() {
   async function retryDrafts(){await pending.current;if(error?.code==='CONFLICT'&&!window.confirm('请先重新读取并核对当前版本。继续会将草稿文字应用到当前版本，成功后可撤销。'))return;
     const all=structuredClone(draftRef.current);for(const [id,d] of Object.entries(all)){const m=latest.current.maps.find(m=>m.id===id);if(!m||Object.keys(d.labels).some(id=>!m.document.nodes.some(n=>n.id===id))){fail(new MindError('DRAFT_TARGET'));return;}if(d.title!==undefined&&titleProblem(d.title)){fail(new MindError(titleProblem(d.title)!));return;}}
     blocked.current=false;setDraftEditing(true);endGroup();
-    for(const [id,d] of Object.entries(all)){if(d.title!==undefined){const ok=await perform(async()=>{const m=latest.current.maps.find(m=>m.id===id)!;const state=await bridge!.command({type:'rename',id,revision:m.revision,title:d.title});acknowledge(id,{title:d.title});return state;});if(!ok)return;}
-      if(Object.keys(d.labels).length){const ok=await perform(async()=>{const m=latest.current.maps.find(m=>m.id===id)!;const state=await bridge!.command({type:'save',id,revision:m.revision,document:{...m.document,nodes:m.document.nodes.map(n=>d.labels[n.id]===undefined?n:{...n,label:d.labels[n.id]})}});acknowledge(id,{labels:d.labels});return state;});if(!ok)return;}}
+    for(const [id,d] of Object.entries(all)){if(d.title!==undefined){const ok=await perform(async()=>{const m=latest.current.maps.find(m=>m.id===id)!;const state=await bridge!.command({type:'rename',id,revision:m.revision,title:d.title});acknowledge(id,{title:d.title},d);return state;});if(!ok)return;}
+      if(Object.keys(d.labels).length){const ok=await perform(async()=>{const m=latest.current.maps.find(m=>m.id===id)!;const state=await bridge!.command({type:'save',id,revision:m.revision,document:{...m.document,nodes:m.document.nodes.map(n=>d.labels[n.id]===undefined?n:{...n,label:d.labels[n.id]})}});acknowledge(id,{labels:d.labels},d);return state;});if(!ok)return;}}
   }
   const command=(type:string,extra:Record<string,unknown>={})=>{endGroup();return perform(()=>bridge!.command({type,id:map?.id,revision:latest.current.maps.find(m=>m.id===map?.id)?.revision,...extra}));};
   const save=(document:DiagramDocument)=>command('save',{document});
-  function updateTitle(value:string){if(!map)return;setMapTitle(value);patchDraft(map.id,{title:value});const problem=titleProblem(value);if(problem){setStatus('名称未提交 · 请修正');return;}if(blocked.current){setStatus('有未保存草稿 · 请重试或放弃');return;}const id=map.id;void perform(async()=>{const current=latest.current.maps.find(m=>m.id===id)!;const state=await bridge!.command({type:'rename',id,revision:current.revision,title:value});acknowledge(id,{title:value});return state;});}
-  function updateLabel(value:string){setLabel(value);if(!map||!node)return;const mapId=map.id,nodeId=node.id;patchDraft(mapId,{labels:{[nodeId]:value}});if(blocked.current){setStatus('有未保存草稿 · 请重试或放弃');return;}
+  function updateTitle(value:string){if(!map)return;setMapTitle(value);const sent=patchDraft(map.id,{title:value});const problem=titleProblem(value);if(problem){setStatus('名称未提交 · 请修正');return;}if(blocked.current){setStatus('有未保存草稿 · 请重试或放弃');return;}const id=map.id;void perform(async()=>{const current=latest.current.maps.find(m=>m.id===id)!;const state=await bridge!.command({type:'rename',id,revision:current.revision,title:value});acknowledge(id,{title:value},sent);return state;});}
+  function updateLabel(value:string){setLabel(value);if(!map||!node)return;const mapId=map.id,nodeId=node.id;const sent=patchDraft(mapId,{labels:{[nodeId]:value}});if(blocked.current){setStatus('有未保存草稿 · 请重试或放弃');return;}
     const now=Date.now();if(!editGroup.current||editGroup.current.node!==nodeId||now-editGroup.current.time>1200)editGroup.current={id:crypto.randomUUID(),node:nodeId,time:now};editGroup.current.time=now;const group=editGroup.current.id;
-    void perform(async()=>{const current=latest.current.maps.find(m=>m.id===mapId)!;const state=await bridge!.command({type:'save',id:mapId,revision:current.revision,editGroup:group,editNode:nodeId,document:{...current.document,nodes:current.document.nodes.map(n=>n.id===nodeId?{...n,label:value}:n)}});acknowledge(mapId,{labels:{[nodeId]:value}});return state;});
+    void perform(async()=>{const current=latest.current.maps.find(m=>m.id===mapId)!;const state=await bridge!.command({type:'save',id:mapId,revision:current.revision,editGroup:group,editNode:nodeId,document:{...current.document,nodes:current.document.nodes.map(n=>n.id===nodeId?{...n,label:value}:n)}});acknowledge(mapId,{labels:{[nodeId]:value}},sent);return state;});
   }
   function selectNode(id:string){endGroup();setSelected(id);setShowFull(false);}
   function inputKey(event:React.KeyboardEvent<HTMLInputElement|HTMLTextAreaElement>){if(composingKey(event.nativeEvent,composing.current)||Date.now()-compositionEnded.current<30)return;if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();event.currentTarget.blur();}}
@@ -158,6 +160,7 @@ function App() {
   });
   return <div className="app">
     <header><strong>EdgeEver <span>Mind</span></strong><small>个人思维导图 · 本地优先</small><span className="spacer"/><button className="shell-toggle" aria-label="切换外壳" onClick={()=>setShell(shell==='paper'?'studio':'paper')}>{shell==='paper'?'☾ 深色工作室':'☀ 温暖纸感'}</button><span className="save-indicator" aria-hidden="true">{draftCount||status.includes('未保存')||status.includes('未提交')||status.includes('失败')?'!':status.includes('正在')?'…':status==='已保存到本机'?'✓':'↻'}</span><span role="status">{status}</span><button onClick={event => {modalReturn.current=event.currentTarget;setSettings(!settings);void bridge?.config().then(c => {setModel(c.model);setHasKey(c.hasKey);}).catch(e => fail(e,'settings'));}}>DeepSeek 设置</button></header>
+    {activity&&<div className="operation-note" role="note">{activity}</div>}
     {error && <div className="error" role="alert"><span>{error.message}（错误代码：{error.code}）</span>
       {error.action==='settings'&&<button onClick={event=>{modalReturn.current=event.currentTarget;setSettings(true);}}>打开设置</button>}
       {(error.scope==='write'||error.scope==='load')&&<button disabled={busy} onClick={()=>void reload()}>重新读取</button>}
